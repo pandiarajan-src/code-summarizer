@@ -15,7 +15,7 @@ An AI-powered CLI tool that analyzes source code files and projects to generate 
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.12+
 - [uv](https://github.com/astral-sh/uv) - Fast Python package manager
 
 ## Installation
@@ -130,21 +130,54 @@ code-summarizer analyze project.zip --verbose
 
 ### Development Commands
 
+#### Using Make (Recommended)
+
 ```bash
-# Run tests
-uv run pytest
+# Complete development setup
+make dev-setup
 
-# Code formatting
-uv run black src/ tests/
+# Code quality and linting
+make lint                    # Check code quality
+make lint-fix               # Fix issues automatically
+make format                 # Format code with black and ruff
+make type-check            # Run mypy type checking
 
-# Linting
-uv run ruff check src/ tests/
+# Testing
+make test                  # Run tests
+make test-cov             # Run tests with coverage
 
-# Type checking
-uv run mypy src/
+# Quick checks
+make quick-check          # Format + lint + type check (no tests)
+make pre-commit           # All quality checks including tests
 
-# Run all quality checks
-uv run python -m pytest && uv run black --check src/ && uv run ruff check src/ && uv run mypy src/
+# Application
+make analyze FILE=myfile.py     # Analyze specific file
+make run ARGS="--help"         # Run CLI with arguments
+make version                   # Show version
+
+# Build and publish
+make build                     # Build package
+make clean                     # Clean artifacts
+```
+
+#### Using Shell Script
+
+```bash
+# Comprehensive linting with colored output
+./lint.sh                 # Check all linting issues
+./lint.sh --fix           # Fix issues automatically
+./lint.sh --check         # Check only mode
+./lint.sh --verbose       # Verbose output
+```
+
+#### Direct UV Commands
+
+```bash
+# Individual tools
+uv run black src/                    # Format with black
+uv run ruff check src/ --fix         # Lint and fix with ruff
+uv run mypy src/                     # Type checking
+uv run pytest                       # Run tests
 ```
 
 ## Supported File Types

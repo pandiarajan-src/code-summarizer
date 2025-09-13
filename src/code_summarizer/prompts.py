@@ -1,6 +1,4 @@
-"""
-Prompt templates for LLM-based code analysis
-"""
+"""Prompt templates for LLM-based code analysis."""
 
 LANGUAGE_DETECTION_PROMPT = """
 Analyze the following code files and identify the programming languages used.
@@ -54,12 +52,13 @@ Provide detailed analysis focusing on:
 """
 
 BATCH_ANALYSIS_PROMPT = """
-Analyze this batch of source code files from a software project. 
+Analyze this batch of source code files from a software project.
 
 Files in this batch:
 {files_info}
 
-For each file, provide analysis following this structure, then provide an overall summary.
+For each file, provide analysis following this structure, then provide an
+overall summary.
 
 Respond with JSON in this format:
 {{
@@ -71,7 +70,7 @@ Respond with JSON in this format:
     "files": [
         {{
             "filename": "file1.py",
-            "language": "Python", 
+            "language": "Python",
             "purpose": "what this file does",
             "complexity": "simple|moderate|complex",
             "functions": [
@@ -89,7 +88,7 @@ Respond with JSON in this format:
     "relationships": [
         {{
             "from": "file1.py",
-            "to": "file2.py", 
+            "to": "file2.py",
             "type": "imports|calls|extends",
             "description": "nature of relationship"
         }}
@@ -104,7 +103,8 @@ Focus on:
 """
 
 PROJECT_SUMMARY_PROMPT = """
-Based on the analysis of all files in this project, provide a comprehensive project summary.
+Based on the analysis of all files in this project, provide a comprehensive
+project summary.
 
 Project Information:
 - Total Files: {total_files}
@@ -116,7 +116,7 @@ Provide a JSON response with:
     "project_summary": {{
         "type": "web application|library|cli tool|mobile app|etc",
         "main_purpose": "what this project does",
-        "architecture": "overall architecture description", 
+        "architecture": "overall architecture description",
         "key_components": ["main components/modules"],
         "technologies": ["frameworks and libraries used"],
         "complexity_assessment": "simple|moderate|complex"
