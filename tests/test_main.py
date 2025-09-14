@@ -13,6 +13,23 @@ from code_summarizer.main import analyze, cli, version
 class TestMainCLI:
     """Test cases for main CLI functionality."""
 
+    def _create_test_prompts_file(self, file_path: str) -> None:
+        """Create a test prompts file."""
+        prompts_content = '''
+language_detection:
+  prompt: "Test language detection prompt: {files_content}"
+
+single_file_analysis:
+  prompt: "Test single file analysis: {filename}, {language}, {language_lower}, {content}"
+
+batch_analysis:
+  prompt: "Test batch analysis: {files_info}"
+
+project_summary:
+  prompt: "Test project summary: {total_files}, {languages}, {analysis_summary}"
+'''
+        Path(file_path).write_text(prompts_content)
+
     def test_version_command(self):
         """Test version command output."""
         runner = CliRunner()
@@ -212,7 +229,11 @@ class TestMainCLI:
             # Create a config file to satisfy Click's exists=True requirement
             config_file = "config.yaml"
             Path(config_file).write_text("# Test config")
-            
+
+            # Create a prompts file to satisfy the prompts_file requirement
+            prompts_file = "prompts.yaml"
+            self._create_test_prompts_file(prompts_file)
+
             result = runner.invoke(analyze, [input_file])
             
             assert result.exit_code == 0
@@ -262,15 +283,19 @@ class TestMainCLI:
 
             runner = CliRunner()
             with runner.isolated_filesystem():
+                # Create a prompts file to satisfy the prompts_file requirement
+                prompts_file = "prompts.yaml"
+                self._create_test_prompts_file(prompts_file)
+
                 result = runner.invoke(analyze, [
                     temp_input,
                     "--config", temp_config
                 ])
-                
+
                 assert result.exit_code == 0
                 # Verify that components were initialized with the custom config
                 mock_file_processor.assert_called_with(config_path=temp_config)
-                mock_llm_client.assert_called_with(config_path=temp_config)
+                mock_llm_client.assert_called_with(config_path=temp_config, prompts_file="prompts.yaml")
                 mock_context_manager.assert_called_with(config_path=temp_config)
                 mock_markdown_formatter.assert_called_with(config_path=temp_config)
 
@@ -321,7 +346,11 @@ class TestMainCLI:
             # Create a config file to satisfy Click's exists=True requirement
             config_file = "config.yaml"
             Path(config_file).write_text("# Test config")
-            
+
+            # Create a prompts file to satisfy the prompts_file requirement
+            prompts_file = "prompts.yaml"
+            self._create_test_prompts_file(prompts_file)
+
             result = runner.invoke(analyze, [input_file, "--verbose"])
             
             assert result.exit_code == 0
