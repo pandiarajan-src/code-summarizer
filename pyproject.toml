@@ -26,6 +26,11 @@ dependencies = [
     "pyyaml>=6.0",
     "tiktoken>=0.5.0",
     "python-dotenv>=1.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "python-multipart>=0.0.6",
+    "aiofiles>=22.1.0",
+    "pydantic-settings>=2.10.1",
 ]
 
 [project.optional-dependencies]
