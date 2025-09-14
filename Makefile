@@ -88,16 +88,16 @@ type-check: ## Run mypy type checker
 ## Testing Commands
 test: ## Run tests
 	@echo "$(BLUE)Running tests...$(RESET)"
-	uv run pytest
+	PYTHONPATH=src uv run pytest
 
 test-cov: ## Run tests with coverage report
 	@echo "$(BLUE)Running tests with coverage...$(RESET)"
-	uv run pytest --cov --cov-report=term-missing --cov-report=html
+	PYTHONPATH=src uv run pytest --cov --cov-report=term-missing --cov-report=html
 	@echo "$(GREEN)Coverage report generated in htmlcov/$(RESET)"
 
 test-watch: ## Run tests in watch mode (requires pytest-xvs)
 	@echo "$(BLUE)Running tests in watch mode...$(RESET)"
-	uv run pytest -f
+	PYTHONPATH=src uv run pytest -f
 
 ## Application Commands
 run: ## Run the CLI tool (use ARGS="..." for arguments)

@@ -25,8 +25,17 @@ load_dotenv()
     default="config.yaml",
     help="Configuration file path",
 )
+@click.option(
+    "--prompts",
+    "-p",
+    type=click.Path(exists=True),
+    default="prompts.yaml",
+    help="Prompts configuration file path",
+)
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
-def analyze(input_path: str, output: str, config: str, verbose: bool) -> None:
+def analyze(
+    input_path: str, output: str, config: str, prompts: str, verbose: bool
+) -> None:
     """Analyze source code files or projects and generate markdown summaries.
 
     INPUT_PATH can be a single source file or a zip archive containing a project.
@@ -37,7 +46,7 @@ def analyze(input_path: str, output: str, config: str, verbose: bool) -> None:
 
         # Initialize components
         file_processor = FileProcessor(config_path=config)
-        llm_client = LLMClient(config_path=config)
+        llm_client = LLMClient(config_path=config, prompts_file=prompts)
         context_manager = ContextManager(config_path=config)
         markdown_formatter = MarkdownFormatter(config_path=config)
 

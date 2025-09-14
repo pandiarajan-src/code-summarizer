@@ -9,23 +9,24 @@ from typing import cast
 import yaml
 from openai import OpenAI
 
-from .prompts import BATCH_ANALYSIS_PROMPT
-from .prompts import LANGUAGE_DETECTION_PROMPT
-from .prompts import PROJECT_SUMMARY_PROMPT
-from .prompts import SINGLE_FILE_ANALYSIS_PROMPT
+from .prompt_loader import PromptLoader
 
 
 class LLMClient:
     """Client for interacting with Large Language Models via OpenAI-compatible APIs."""
 
-    def __init__(self, config_path: str = "config.yaml") -> None:
+    def __init__(
+        self, config_path: str = "config.yaml", prompts_file: str = "prompts.yaml"
+    ) -> None:
         """Initialize LLM client with configuration.
 
         Args:
             config_path: Path to configuration YAML file.
+            prompts_file: Path to prompts configuration file.
         """
         self.config = self._load_config(config_path)
         self.client = self._initialize_client()
+        self.prompt_loader = PromptLoader(prompts_file)
 
         # LLM settings
         llm_config = self.config.get("llm", {})
@@ -110,7 +111,9 @@ class LLMClient:
             )
 
         files_content = "\n".join(files_summary)
-        prompt = LANGUAGE_DETECTION_PROMPT.format(files_content=files_content)
+        prompt = self.prompt_loader.language_detection_prompt.format(
+            files_content=files_content
+        )
 
         response = self._make_api_call(prompt)
         return self._parse_json_response(response)
@@ -120,7 +123,7 @@ class LLMClient:
         # Determine language from extension or content
         language = self._guess_language_from_extension(file_data["extension"])
 
-        prompt = SINGLE_FILE_ANALYSIS_PROMPT.format(
+        prompt = self.prompt_loader.single_file_analysis_prompt.format(
             filename=file_data["name"],
             language=language,
             language_lower=language.lower(),
@@ -166,7 +169,9 @@ Content:
 """
             files_info.append(info)
 
-        prompt = BATCH_ANALYSIS_PROMPT.format(files_info="\n".join(files_info))
+        prompt = self.prompt_loader.batch_analysis_prompt.format(
+            files_info="\n".join(files_info)
+        )
 
         response = self._make_api_call(prompt)
         return self._parse_json_response(response)
@@ -198,7 +203,7 @@ Content:
                 if main_purpose:
                     key_findings.append(main_purpose)
 
-        prompt = PROJECT_SUMMARY_PROMPT.format(
+        prompt = self.prompt_loader.project_summary_prompt.format(
             total_files=len(files_data),
             languages=", ".join(languages),
             analysis_summary=json.dumps(analysis_summary, indent=2),
