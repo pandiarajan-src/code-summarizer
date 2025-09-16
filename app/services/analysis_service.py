@@ -6,13 +6,10 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from ..core.config import Settings
+
 # Import from app directory (organized structure)
 from ..core.context_manager import ContextManager
-from ..utils.file_processor import FileProcessor
-from .llm_client import LLMClient
-from ..utils.markdown_formatter import MarkdownFormatter
-
-from ..core.config import Settings
 from ..core.exceptions import AnalysisError
 from ..core.exceptions import ConfigurationError
 from ..core.exceptions import FileProcessingError
@@ -23,6 +20,9 @@ from ..models.responses import AnalysisResponse
 from ..models.responses import BatchAnalysisResult
 from ..models.responses import FileAnalysisResult
 from ..models.responses import ProjectSummary
+from ..utils.file_processor import FileProcessor
+from ..utils.markdown_formatter import MarkdownFormatter
+from .llm_client import LLMClient
 
 
 class AnalysisService:
@@ -37,7 +37,7 @@ class AnalysisService:
         """Initialize the core analysis components."""
         try:
             # Create a legacy config dict for existing modules
-            legacy_config = self.settings.to_legacy_config()
+            _ = self.settings.to_legacy_config()
 
             # Initialize components with config
             self.file_processor = FileProcessor(

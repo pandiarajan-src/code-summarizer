@@ -1,5 +1,7 @@
 """Analysis endpoints for the FastAPI application."""
 
+from typing import Any
+
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import File
@@ -20,6 +22,7 @@ from ...models.requests import ConfigOverrides
 from ...models.responses import AnalysisResponse
 from ...models.responses import BatchAnalysisResponse
 from ...services.analysis_service import AnalysisService
+from ...utils.file_handler import FileHandler
 from ..deps import get_analysis_dependencies
 
 router = APIRouter(tags=["Analysis"])
@@ -27,7 +30,10 @@ router = APIRouter(tags=["Analysis"])
 
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_files(
-    request: AnalysisRequest, dependencies: tuple = Depends(get_analysis_dependencies)
+    request: AnalysisRequest,
+    dependencies: tuple[AnalysisService, FileHandler] = Depends(
+        get_analysis_dependencies
+    ),
 ) -> AnalysisResponse:
     """Analyze files provided in the request body."""
     analysis_service, _ = dependencies
@@ -59,7 +65,9 @@ async def analyze_uploaded_files(
     ),
     verbose: bool = Form(False, description="Enable verbose output"),
     extract_archives: bool = Form(True, description="Extract ZIP archives"),
-    dependencies: tuple = Depends(get_analysis_dependencies),
+    dependencies: tuple[AnalysisService, FileHandler] = Depends(
+        get_analysis_dependencies
+    ),
 ) -> AnalysisResponse:
     """Analyze uploaded files."""
     analysis_service, file_handler = dependencies
@@ -106,7 +114,9 @@ async def analyze_uploaded_files(
 @router.post("/analyze/paths", response_model=AnalysisResponse)
 async def analyze_from_paths(
     request: AnalysisFromPathRequest,
-    dependencies: tuple = Depends(get_analysis_dependencies),
+    dependencies: tuple[AnalysisService, FileHandler] = Depends(
+        get_analysis_dependencies
+    ),
 ) -> AnalysisResponse:
     """Analyze files from server file paths."""
     analysis_service, _ = dependencies
@@ -135,7 +145,9 @@ async def analyze_from_paths(
 @router.post("/analyze/batch", response_model=BatchAnalysisResponse)
 async def analyze_batch(
     request: BatchAnalysisRequest,
-    dependencies: tuple = Depends(get_analysis_dependencies),
+    dependencies: tuple[AnalysisService, FileHandler] = Depends(
+        get_analysis_dependencies
+    ),
 ) -> BatchAnalysisResponse:
     """Analyze files in batch mode with enhanced batching strategy."""
     analysis_service, _ = dependencies
@@ -190,7 +202,9 @@ async def analyze_batch_uploaded_files(
     force_batch: bool = Form(
         False, description="Force batch processing even for single files"
     ),
-    dependencies: tuple = Depends(get_analysis_dependencies),
+    dependencies: tuple[AnalysisService, FileHandler] = Depends(
+        get_analysis_dependencies
+    ),
 ) -> BatchAnalysisResponse:
     """Analyze uploaded files in batch mode."""
     analysis_service, file_handler = dependencies
@@ -240,7 +254,7 @@ async def get_supported_file_types(
     analysis_service: AnalysisService = Depends(
         lambda deps=Depends(get_analysis_dependencies): deps[0]
     ),
-) -> dict:
+) -> dict[str, Any]:
     """Get list of supported file types for analysis."""
     return {
         "supported_extensions": analysis_service.get_supported_file_types(),
@@ -254,7 +268,7 @@ async def get_analysis_config(
     analysis_service: AnalysisService = Depends(
         lambda deps=Depends(get_analysis_dependencies): deps[0]
     ),
-) -> dict:
+) -> dict[str, Any]:
     """Get current analysis configuration."""
     config = analysis_service.get_current_config()
 
@@ -268,8 +282,10 @@ async def get_analysis_config(
 @router.post("/analyze/validate")
 async def validate_files(
     files: list[UploadFile] = File(..., description="Files to validate"),
-    dependencies: tuple = Depends(get_analysis_dependencies),
-) -> dict:
+    dependencies: tuple[AnalysisService, FileHandler] = Depends(
+        get_analysis_dependencies
+    ),
+) -> dict[str, Any]:
     """Validate uploaded files without performing analysis."""
     _, file_handler = dependencies
 

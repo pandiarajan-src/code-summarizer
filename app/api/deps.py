@@ -51,7 +51,9 @@ async def verify_api_key(
     """Verify API key if authentication is enabled."""
     # For now, return None since authentication is disabled
     # This can be implemented later when authentication is needed
-
+    # Explicitly acknowledge unused parameters
+    _ = credentials
+    _ = current_settings
     return None
 
 
@@ -77,15 +79,7 @@ async def check_service_health(
     """Check if all services are healthy and configured."""
     try:
         # Basic configuration checks
-        if not current_settings.openai_api_key:
-            return False
-
-        # Could add more health checks here
-        # - Test LLM API connectivity
-        # - Check file system permissions
-        # - Validate configuration files
-
-        return True
+        return bool(current_settings.openai_api_key)
 
     except Exception:
         return False
@@ -124,7 +118,9 @@ async def validate_request_size(
 # Error handling dependencies
 
 
-async def get_error_context(current_settings: Settings = Depends(get_settings)) -> dict:
+async def get_error_context(
+    current_settings: Settings = Depends(get_settings),
+) -> dict[str, str | int]:
     """Get context information for error responses."""
     return {
         "api_version": current_settings.api_version,

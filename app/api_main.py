@@ -3,7 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.routes import analyze, health
+from .api.routes import analyze
+from .api.routes import health
 from .core.config import Settings
 from .core.exceptions import setup_exception_handlers
 
@@ -33,7 +34,7 @@ app.include_router(analyze.router, prefix="/api")
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint."""
     return {
         "name": "Code Summarizer API",

@@ -8,8 +8,8 @@ import click
 from dotenv import load_dotenv
 
 from .core.context_manager import ContextManager
-from .utils.file_processor import FileProcessor
 from .services.llm_client import LLMClient
+from .utils.file_processor import FileProcessor
 from .utils.markdown_formatter import MarkdownFormatter
 
 load_dotenv()

@@ -6,7 +6,7 @@ __description__ = "AI-powered code analysis and summarization tool"
 
 
 # Only import CLI when explicitly requested to avoid dependency issues
-def get_cli():
+def get_cli() -> object:
     """Lazy import CLI to avoid loading heavy dependencies."""
     from .main import cli
 

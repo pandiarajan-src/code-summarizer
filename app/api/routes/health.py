@@ -60,7 +60,13 @@ async def health_check(
             response_data["status"] = "degraded"
             response_data["services"] = {"error": str(e)}
 
-    return HealthResponse(**response_data)
+    return HealthResponse(
+        status=str(response_data["status"]),
+        version=str(response_data["version"]),
+        uptime_seconds=response_data.get("uptime_seconds"),  # type: ignore[arg-type]
+        services=response_data.get("services"),  # type: ignore[arg-type]
+        system_info=response_data.get("system_info"),  # type: ignore[arg-type]
+    )
 
 
 @router.get("/version", response_model=VersionResponse)

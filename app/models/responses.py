@@ -136,7 +136,9 @@ class BatchAnalysisResponse(BaseModel):
     )
 
     # Project-level summary
-    project_summary: ProjectSummary = Field(..., description="Project-level summary")
+    project_summary: ProjectSummary | None = Field(
+        None, description="Project-level summary"
+    )
 
     # Metadata
     total_files_analyzed: int = Field(

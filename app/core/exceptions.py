@@ -82,7 +82,7 @@ class FileTooLargeError(FileProcessingError):
 class UnsupportedFileTypeError(FileProcessingError):
     """Exception raised when file type is not supported."""
 
-    def __init__(self, file_type: str, supported_types: list):
+    def __init__(self, file_type: str, supported_types: list[str]):
         message = f"File type '{file_type}' is not supported"
         details = {"file_type": file_type, "supported_types": supported_types}
         super().__init__(message=message, details=details)
@@ -175,8 +175,9 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 def setup_exception_handlers(app: FastAPI) -> None:
     """Setup exception handlers for the FastAPI application."""
     app.add_exception_handler(
-        CodeSummarizerException, code_summarizer_exception_handler
+        CodeSummarizerException,
+        code_summarizer_exception_handler,  # type: ignore[arg-type]
     )
-    app.add_exception_handler(ValidationError, validation_exception_handler)
-    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(ValidationError, validation_exception_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, general_exception_handler)
