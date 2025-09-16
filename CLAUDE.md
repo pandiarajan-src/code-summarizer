@@ -110,6 +110,7 @@ uv run python test_api.py          # Direct API testing script
 
 ## Project Structure
 
+### Backend (API & CLI)
 ```
 app/
 ├── main.py                      # CLI entry point
@@ -120,7 +121,7 @@ app/
 │   └── exceptions.py           # Custom exceptions
 ├── services/                    # Business logic
 │   ├── llm_client.py          # OpenAI integration
-│   └── analysis_service.py    # API business logic
+│   └── analysis_service.py    # API business logic (CRITICAL: see fix notes)
 ├── utils/                       # Utilities
 │   ├── file_processor.py      # File handling
 │   ├── markdown_formatter.py  # Report generation
@@ -132,6 +133,24 @@ app/
     └── routes/
         ├── analyze.py         # Analysis endpoints
         └── health.py          # Health checks
+```
+
+### Frontend (Web Application)
+```
+frontend/
+├── index.html              # Main single-page application
+├── css/
+│   └── styles.css         # Intel-inspired sky blue theme
+├── js/
+│   └── app.js            # Application logic and API integration
+├── config.js              # Frontend configuration
+├── README.md              # Frontend documentation
+├── DEPLOYMENT.md          # Deployment guide
+├── Dockerfile             # Container configuration
+├── nginx.conf            # Production web server config
+├── start.sh              # Development server script
+├── test_frontend.html    # API testing interface
+└── sample_test.py        # Test file for uploads
 ```
 
 ## Key Technical Details
@@ -153,6 +172,23 @@ Supports 20+ programming languages with configurable extension filtering:
 - Structured prompts loaded from `prompts.yaml`
 - Temperature and token limits configurable per environment
 - Robust error handling with retries
+
+### API Endpoints (Important for Frontend)
+All API endpoints are prefixed with `/api`:
+- **Health Check**: `GET /api/health`
+- **File Upload Analysis**: `POST /api/analyze/upload`
+- **Batch Analysis**: `POST /api/analyze/batch/upload`
+- **Supported Types**: `GET /api/analyze/supported-types`
+- **Validate Files**: `POST /api/analyze/validate`
+
+### Frontend Integration
+- **API Base URL**: Default `http://127.0.0.1:8000`
+- **CORS**: Enabled for all origins in development
+- **File Upload**: Multipart form-data with fields:
+  - `files`: File(s) to analyze
+  - `output_format`: "markdown", "json", or "both"
+  - `verbose`: Boolean flag
+  - `extract_archives`: Boolean flag for ZIP extraction
 
 ### Environment Configuration
 ```bash
@@ -238,7 +274,30 @@ make ci                    # Full CI pipeline
 
 ## Recent Updates & Features
 
-### Enhanced Testing Framework (Latest)
+### Frontend Web Application (Latest - 2025-09-17)
+Complete single-page web application for the Code Summarizer API:
+- **Location**: `frontend/` directory (isolated from backend)
+- **Technology**: Pure HTML/CSS/JavaScript (no framework dependencies)
+- **Features**: File upload, progress tracking, markdown preview, download reports
+- **Theme**: Intel-inspired sky blue professional design
+- **Deployment**: Docker-ready with nginx configuration
+- **Testing**: Includes test files and API validation scripts
+
+### Critical API Fix for Markdown Output (2025-09-17)
+**Issue**: API was returning incomplete markdown output (only metadata, no function details)
+**Root Cause**: `app/services/analysis_service.py` line 159 was only passing `batch_summary` to MarkdownFormatter
+**Solution**: Modified to reconstruct full analysis results including file details:
+```python
+# Fixed code in analysis_service.py
+legacy_analysis_results = []
+for i, br in enumerate(batch_results):
+    batch = batches[i]
+    full_result = self.llm_client.analyze_batch(batch)
+    legacy_analysis_results.append(full_result)
+```
+**Impact**: Frontend now receives complete analysis with function descriptions, parameters, and all details
+
+### Enhanced Testing Framework
 Comprehensive test suite covering all components:
 - **Unit Tests**: `tests/unit/` - Core modules, services, utilities, models, and API routes
 - **Integration Tests**: `tests/integration/` - End-to-end CLI and API testing
@@ -258,6 +317,7 @@ Enhanced report generation with:
 - **Makefile**: Full help system with categorized commands and examples
 - **Test Documentation**: Detailed testing procedures and examples
 - **API Documentation**: OpenAPI/Swagger integration for FastAPI endpoints
+- **Frontend Documentation**: `frontend/README.md` and `frontend/DEPLOYMENT.md`
 
 ### Development Quality Improvements
 - **Type Hints**: Strict MyPy configuration with comprehensive type coverage
@@ -293,7 +353,104 @@ make quick-check           # Fast quality check (no tests)
 
 ### File Organization Notes
 - **App Structure**: All application code in `app/` directory
+- **Frontend Structure**: Isolated in `frontend/` directory for independent deployment
 - **Test Structure**: Mirror app structure in `tests/unit/` and `tests/integration/`
 - **Configuration**: YAML files for CLI, Pydantic settings for API
-- **Documentation**: README.md, CLAUDE.md, and inline code documentation
-- **Scripts**: Helper scripts (`lint.sh`, `test_api.py`) for development workflow
+- **Documentation**: README.md, CLAUDE.md, frontend/README.md, frontend/DEPLOYMENT.md
+- **Scripts**: Helper scripts (`lint.sh`, `test_api.py`, `frontend/start.sh`) for development workflow
+
+## Troubleshooting Guide
+
+### Common Issues and Solutions
+
+#### API Returns Incomplete Markdown
+**Symptom**: API returns only metadata without function details
+**Solution**: Check `app/services/analysis_service.py` lines 154-169. Ensure the fix is applied that reconstructs full analysis results:
+```python
+# The fix reconstructs full results for markdown formatter
+for i, br in enumerate(batch_results):
+    batch = batches[i]
+    full_result = self.llm_client.analyze_batch(batch)
+    legacy_analysis_results.append(full_result)
+```
+
+#### Frontend Not Connecting to API
+**Symptom**: "API Offline" or connection errors
+**Solution**:
+1. Verify API is running: `make run-api` or `curl http://127.0.0.1:8000/api/health`
+2. Check CORS settings in `app/api_main.py`
+3. Update API URL in `frontend/index.html` configuration section
+4. Ensure all endpoints use `/api` prefix
+
+#### File Upload Fails
+**Symptom**: Upload errors or no response
+**Solution**:
+1. Check file size (default limit: 50MB)
+2. Verify file extension is supported (`.py`, `.js`, `.ts`, etc.)
+3. Check API logs for detailed error messages
+4. Ensure multipart/form-data is used for uploads
+
+#### Markdown Preview Shows Raw Text
+**Symptom**: Markdown not rendering properly
+**Solution**: Ensure CDN libraries (marked.js, DOMPurify) are loading correctly
+
+#### Empty or Truncated Analysis Results
+**Symptom**: Analysis completes but results are minimal
+**Solution**:
+1. Check OpenAI API key is set correctly
+2. Verify LLM client is receiving responses
+3. Check token limits in configuration
+4. Review `app/services/llm_client.py` for response parsing
+
+## Quick Start Guide
+
+### Running the Complete System
+
+1. **Setup Environment**:
+   ```bash
+   # Create .env file with API key
+   echo "OPENAI_API_KEY=your-key-here" > .env
+   ```
+
+2. **Start the API Server**:
+   ```bash
+   make run-api
+   # OR
+   PYTHONPATH=app uv run uvicorn app.api_main:app --host 127.0.0.1 --port 8000 --reload
+   ```
+
+3. **Start the Frontend**:
+   ```bash
+   cd frontend
+   ./start.sh
+   # OR
+   python3 -m http.server 8080
+   ```
+
+4. **Access the Application**:
+   - Frontend: `http://localhost:8080`
+   - API Docs: `http://localhost:8000/docs`
+   - API Health: `http://localhost:8000/api/health`
+
+### Docker Deployment
+
+```bash
+# Build and run both frontend and API
+docker-compose up -d
+
+# Access at:
+# - Frontend: http://localhost:8080
+# - API: http://localhost:8000
+```
+
+### Testing the System
+
+```bash
+# Test API endpoints
+make test-api
+
+# Test with sample file
+curl -X POST -F "files=@tests/data/sample.py" \
+     -F "output_format=markdown" \
+     http://127.0.0.1:8000/api/analyze/upload
+```
