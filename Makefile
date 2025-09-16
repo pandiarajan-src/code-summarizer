@@ -40,6 +40,8 @@ help: ## Show this help message
 	@echo "  make test-integration              # Run integration tests only"
 	@echo "  make test-cov                      # Run all tests with coverage"
 	@echo "  make test-specific TEST=tests/unit/test_config.py  # Run specific test"
+	@echo "  make test-api                      # Test all API endpoints"
+	@echo "  make test-api-detailed             # Test API endpoints with detailed results"
 	@echo "  make run-api                       # Start API server"
 	@echo "  make analyze FILE=main.py          # Analyze a specific file"
 

@@ -154,6 +154,10 @@ make test-fast             # Run tests in fast mode (minimal output)
 make test-failed           # Run only failed tests from last run
 make test-specific TEST=path/to/test  # Run specific test file
 
+# API Testing
+make test-api              # Test all API endpoints
+make test-api-detailed     # Test API endpoints with detailed results
+
 # Quick checks
 make quick-check          # Format + lint + type check (no tests)
 make pre-commit           # All quality checks including tests
