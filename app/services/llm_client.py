@@ -9,7 +9,7 @@ from typing import cast
 import yaml
 from openai import OpenAI
 
-from .prompt_loader import PromptLoader
+from ..utils.prompt_loader import PromptLoader
 
 
 class LLMClient:
@@ -80,7 +80,10 @@ class LLMClient:
         """Parse JSON response from LLM, handling common formatting issues."""
         try:
             # Try direct parsing first
-            return json.loads(response)
+            result = json.loads(response)
+            if isinstance(result, dict):
+                return result
+            raise ValueError("Response is not a JSON object")
         except json.JSONDecodeError:
             # Try to extract JSON from markdown code blocks
             if "```json" in response:
@@ -88,14 +91,18 @@ class LLMClient:
                 json_end = response.find("```", json_start)
                 if json_end != -1:
                     json_str = response[json_start:json_end].strip()
-                    return json.loads(json_str)
+                    result = json.loads(json_str)
+                    if isinstance(result, dict):
+                        return result
 
             # Try to find JSON-like content
             start_idx = response.find("{")
             end_idx = response.rfind("}")
             if start_idx != -1 and end_idx != -1:
                 json_str = response[start_idx : end_idx + 1]
-                return json.loads(json_str)
+                result = json.loads(json_str)
+                if isinstance(result, dict):
+                    return result
 
             raise Exception(
                 f"Could not parse JSON from LLM response: {response[:200]}..."

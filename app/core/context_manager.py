@@ -41,7 +41,10 @@ class ContextManager:
         """Load configuration from YAML file."""
         try:
             with Path(config_path).open(encoding="utf-8") as f:
-                return yaml.safe_load(f)
+                config_data = yaml.safe_load(f)
+                if not isinstance(config_data, dict):
+                    return {}
+                return config_data
         except FileNotFoundError:
             return {}
 

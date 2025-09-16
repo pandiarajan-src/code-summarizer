@@ -143,8 +143,16 @@ make format                 # Format code with black and ruff
 make type-check            # Run mypy type checking
 
 # Testing
-make test                  # Run tests
-make test-cov             # Run tests with coverage
+make test                  # Run all tests (unit + integration)
+make test-unit             # Run unit tests only
+make test-integration      # Run integration tests only
+make test-cov              # Run tests with coverage report
+make test-cov-unit         # Run unit tests with coverage
+make test-cov-integration  # Run integration tests with coverage
+make test-verbose          # Run tests with verbose output
+make test-fast             # Run tests in fast mode (minimal output)
+make test-failed           # Run only failed tests from last run
+make test-specific TEST=path/to/test  # Run specific test file
 
 # Quick checks
 make quick-check          # Format + lint + type check (no tests)
@@ -178,6 +186,176 @@ uv run black src/                    # Format with black
 uv run ruff check src/ --fix         # Lint and fix with ruff
 uv run mypy src/                     # Type checking
 uv run pytest                       # Run tests
+```
+
+## Testing
+
+The project includes comprehensive unit and integration tests to ensure code quality and functionality.
+
+### Test Structure
+
+```
+tests/
+├── unit/                    # Unit tests
+│   ├── core/               # Tests for core modules
+│   │   ├── test_config.py
+│   │   ├── test_context_manager.py
+│   │   └── test_exceptions.py
+│   ├── services/           # Tests for service classes
+│   │   ├── test_llm_client.py
+│   │   └── test_analysis_service.py
+│   ├── utils/              # Tests for utility functions
+│   │   ├── test_file_processor.py
+│   │   ├── test_markdown_formatter.py
+│   │   └── test_prompt_loader.py
+│   ├── models/             # Tests for Pydantic models
+│   │   ├── test_requests.py
+│   │   └── test_responses.py
+│   └── api/                # Tests for API routes
+│       └── routes/
+│           ├── test_analyze.py
+│           └── test_health.py
+└── integration/            # Integration tests
+    ├── test_cli.py         # CLI integration tests
+    └── test_api.py         # API integration tests
+```
+
+### Running Tests
+
+#### Basic Test Commands
+
+```bash
+# Run all tests
+make test
+
+# Run only unit tests
+make test-unit
+
+# Run only integration tests
+make test-integration
+
+# Run tests with coverage report
+make test-cov
+
+# Run specific test file
+make test-specific TEST=tests/unit/core/test_config.py
+
+# Run tests in verbose mode
+make test-verbose
+
+# Run only failed tests from last run
+make test-failed
+```
+
+#### Using the Test Runner Script
+
+```bash
+# Run all tests with colored output
+./run_tests.sh
+
+# Run unit tests only
+./run_tests.sh --unit
+
+# Run integration tests only
+./run_tests.sh --integration
+
+# Run tests with coverage
+./run_tests.sh --coverage
+
+# Run tests verbosely
+./run_tests.sh --verbose
+
+# Run specific test file
+./run_tests.sh --specific tests/unit/core/test_config.py
+
+# Run only failed tests from last run
+./run_tests.sh --failed
+
+# Combine options
+./run_tests.sh --unit --coverage --verbose
+```
+
+#### Direct pytest Commands
+
+```bash
+# Run all tests
+PYTHONPATH=app uv run pytest tests/
+
+# Run with coverage
+PYTHONPATH=app uv run pytest tests/ --cov=app --cov-report=html
+
+# Run specific test patterns
+PYTHONPATH=app uv run pytest tests/ -k "test_config"
+
+# Run with markers (if defined)
+PYTHONPATH=app uv run pytest tests/ -m "unit"
+```
+
+### Test Coverage
+
+Generate and view test coverage reports:
+
+```bash
+# Generate coverage report
+make test-cov
+
+# View HTML coverage report
+open htmlcov/index.html  # macOS
+xdg-open htmlcov/index.html  # Linux
+```
+
+### Writing Tests
+
+#### Unit Test Example
+
+```python
+import pytest
+from app.core.config import Settings
+
+class TestSettings:
+    def test_default_values(self):
+        """Test default configuration values."""
+        settings = Settings()
+        assert settings.api_title == "Code Summarizer API"
+        assert settings.debug is False
+```
+
+#### Integration Test Example
+
+```python
+import pytest
+from fastapi.testclient import TestClient
+from app.api_main import app
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+def test_health_endpoint(client):
+    """Test health check endpoint."""
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+```
+
+### Test Configuration
+
+Tests use the following conventions:
+- Unit tests should mock external dependencies
+- Integration tests can use real components but should be isolated
+- Use pytest fixtures for common test setup
+- Mock API calls in tests to avoid external dependencies
+
+### Environment Variables for Testing
+
+Set these environment variables when running tests:
+
+```bash
+# For tests that require API simulation
+export OPENAI_API_KEY=test-key
+
+# Run tests
+make test
 ```
 
 ## Supported File Types
@@ -328,7 +506,7 @@ uv run code-summarizer analyze myfile.py --verbose
 2. Create a feature branch
 3. Install development dependencies: `uv sync --dev`
 4. Make your changes
-5. Run quality checks: `uv run pytest && uv run ruff check && uv run black --check src/`
+5. Run quality checks: `make test && make lint && make type-check`
 6. Submit a pull request
 
 ## License

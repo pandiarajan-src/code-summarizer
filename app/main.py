@@ -7,10 +7,10 @@ from pathlib import Path
 import click
 from dotenv import load_dotenv
 
-from .context_manager import ContextManager
-from .file_processor import FileProcessor
-from .llm_client import LLMClient
-from .markdown_formatter import MarkdownFormatter
+from .core.context_manager import ContextManager
+from .services.llm_client import LLMClient
+from .utils.file_processor import FileProcessor
+from .utils.markdown_formatter import MarkdownFormatter
 
 load_dotenv()
 

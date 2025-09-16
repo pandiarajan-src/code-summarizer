@@ -212,15 +212,36 @@ class MarkdownFormatter:
                 func_name = func.get("name", "unnamed")
                 func_type = func.get("type", "function")
                 func_purpose = func.get("purpose", "No description")
+                func_description = func.get("description", "")
+                func_parameters = func.get("parameters", [])
                 line_num = func.get("line_number", "")
 
                 line_info = f" (line {line_num})" if line_num else ""
                 md += f"- **`{func_name}`** ({func_type}){line_info}: {func_purpose}\n"
 
-        # Add imports/dependencies
+                # Add detailed description if available
+                if func_description and func_description != func_purpose:
+                    md += f"  - *Description*: {func_description}\n"
+
+                # Add parameters if available
+                if func_parameters:
+                    params_str = ", ".join(func_parameters)
+                    md += f"  - *Parameters*: `{params_str}`\n"
+
+        # Add global variables
+        global_vars = file_analysis.get("global_variables", [])
+        if global_vars:
+            md += f"\n**Global Variables**: {', '.join(global_vars)}\n"
+
+        # Add imports
         imports = file_analysis.get("imports", [])
         if imports:
-            md += f"\n**Dependencies**: {', '.join(imports)}\n"
+            md += f"\n**Imports**: {', '.join(imports)}\n"
+
+        # Add external dependencies
+        dependencies = file_analysis.get("dependencies", [])
+        if dependencies:
+            md += f"\n**External Dependencies**: {', '.join(dependencies)}\n"
 
         # Add key features
         features = file_analysis.get("key_features", [])

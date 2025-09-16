@@ -37,12 +37,14 @@ single_file_analysis:
                 "name": "function_name",
                 "type": "function|method|class",
                 "purpose": "what this function does",
+                "description": "detailed description",
                 "parameters": ["param1", "param2"],
                 "line_number": 123
             }}
         ],
         "imports": ["import1", "import2"],
         "dependencies": ["external dependencies identified"],
+        "global_variables": ["global_var1", "global_var2"],
         "key_features": ["notable features or patterns"],
         "potential_issues": ["any code issues or concerns"]
     }}
@@ -81,11 +83,16 @@ batch_analysis:
                         "name": "function_name",
                         "type": "function|method|class",
                         "purpose": "what this does",
+                        "description": "detailed description",
+                        "parameters": ["param1", "param2"],
                         "line_number": 123
                     }}
                 ],
                 "imports": ["dependencies"],
-                "key_features": ["notable aspects"]
+                "dependencies": ["external dependencies"],
+                "global_variables": ["global_var1", "global_var2"],
+                "key_features": ["notable aspects"],
+                "potential_issues": ["any code issues or concerns"]
             }}
         ],
         "relationships": [

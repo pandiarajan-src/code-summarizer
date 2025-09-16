@@ -13,7 +13,7 @@ RESET := \033[0m
 
 # Variables
 PYTHON_VERSION := 3.12
-SRC_DIR := src
+SRC_DIR := app
 TEST_DIR := tests
 
 ## Help
@@ -25,16 +25,23 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(install|clean)" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Development Commands:$(RESET)"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(lint|format|type|test)" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(lint|format|type)" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(GREEN)Testing Commands:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "test" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Application Commands:$(RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(run|analyze|build|publish)" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Examples:$(RESET)"
-	@echo "  make install-dev          # Set up development environment"
-	@echo "  make lint-fix             # Fix linting issues automatically"
-	@echo "  make analyze FILE=main.py # Analyze a specific file"
-	@echo "  make test-cov             # Run tests with coverage report"
+	@echo "  make install-dev                    # Set up development environment"
+	@echo "  make lint-fix                      # Fix linting issues automatically"
+	@echo "  make test-unit                     # Run unit tests only"
+	@echo "  make test-integration              # Run integration tests only"
+	@echo "  make test-cov                      # Run all tests with coverage"
+	@echo "  make test-specific TEST=tests/unit/test_config.py  # Run specific test"
+	@echo "  make run-api                       # Start API server"
+	@echo "  make analyze FILE=main.py          # Analyze a specific file"
 
 ## Setup Commands
 install: ## Install production dependencies
@@ -50,11 +57,12 @@ clean: ## Clean build artifacts and caches
 	@echo "$(BLUE)Cleaning build artifacts...$(RESET)"
 	rm -rf build/
 	rm -rf dist/
-	rm -rf src/*.egg-info/
+	rm -rf app/*.egg-info/
 	rm -rf .pytest_cache/
 	rm -rf .mypy_cache/
 	rm -rf .coverage
 	rm -rf htmlcov/
+	rm -rf api_test_results_*.json
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*_summary.md" -delete
@@ -74,35 +82,80 @@ format: ## Format code with black and ruff
 	uv run black $(SRC_DIR)/
 	uv run ruff format $(SRC_DIR)/
 	uv run ruff check --fix $(SRC_DIR)/
+	uv run black *.py
+	uv run ruff format *.py
+	uv run ruff check --fix *.py
 	@echo "$(GREEN)Code formatted!$(RESET)"
 
 format-check: ## Check code formatting without making changes
 	@echo "$(BLUE)Checking code formatting...$(RESET)"
 	uv run black --check --diff $(SRC_DIR)/
 	uv run ruff format --check $(SRC_DIR)/
+	uv run black --check --diff *.py
+	uv run ruff format --check *.py
 
 type-check: ## Run mypy type checker
 	@echo "$(BLUE)Running type checker...$(RESET)"
 	uv run mypy $(SRC_DIR)/
 
 ## Testing Commands
-test: ## Run tests
-	@echo "$(BLUE)Running tests...$(RESET)"
-	PYTHONPATH=src uv run pytest
+test: ## Run all tests (unit and integration)
+	@echo "$(BLUE)Running all tests...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/
+
+test-unit: ## Run unit tests only
+	@echo "$(BLUE)Running unit tests...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/unit/
+
+test-integration: ## Run integration tests only
+	@echo "$(BLUE)Running integration tests...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/integration/
 
 test-cov: ## Run tests with coverage report
 	@echo "$(BLUE)Running tests with coverage...$(RESET)"
-	PYTHONPATH=src uv run pytest --cov --cov-report=term-missing --cov-report=html
+	PYTHONPATH=app uv run pytest tests/ --cov=app --cov-report=term-missing --cov-report=html
+	@echo "$(GREEN)Coverage report generated in htmlcov/$(RESET)"
+
+test-cov-unit: ## Run unit tests with coverage report
+	@echo "$(BLUE)Running unit tests with coverage...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/unit/ --cov=app --cov-report=term-missing --cov-report=html
+	@echo "$(GREEN)Coverage report generated in htmlcov/$(RESET)"
+
+test-cov-integration: ## Run integration tests with coverage report
+	@echo "$(BLUE)Running integration tests with coverage...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/integration/ --cov=app --cov-report=term-missing --cov-report=html
 	@echo "$(GREEN)Coverage report generated in htmlcov/$(RESET)"
 
 test-watch: ## Run tests in watch mode (requires pytest-xvs)
 	@echo "$(BLUE)Running tests in watch mode...$(RESET)"
-	PYTHONPATH=src uv run pytest -f
+	PYTHONPATH=app uv run pytest -f tests/
+
+test-verbose: ## Run tests with verbose output
+	@echo "$(BLUE)Running tests with verbose output...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/ -v
+
+test-fast: ## Run tests with minimal output (fast mode)
+	@echo "$(BLUE)Running tests in fast mode...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/ -q
+
+test-failed: ## Run only failed tests from last run
+	@echo "$(BLUE)Running only failed tests...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/ --lf
+
+test-specific: ## Run specific test file (use TEST=path/to/test)
+ifdef TEST
+	@echo "$(BLUE)Running test: $(TEST)$(RESET)"
+	PYTHONPATH=app uv run pytest $(TEST) -v
+else
+	@echo "$(RED)Error: TEST parameter required$(RESET)"
+	@echo "Usage: make test-specific TEST=tests/unit/test_example.py"
+	@exit 1
+endif
 
 ## Application Commands
-run: ## Run the CLI tool (use ARGS="..." for arguments)
-	@echo "$(BLUE)Running Code Summarizer...$(RESET)"
-	uv run code-summarizer $(ARGS)
+run-api: ## Start the API server
+	@echo "$(BLUE)Starting Code Summarizer API...$(RESET)"
+	PYTHONPATH=app uv run uvicorn app.api_main:app --host 127.0.0.1 --port 8000 --reload
 
 analyze: ## Analyze a file (use FILE=path/to/file)
 ifndef FILE
@@ -111,10 +164,18 @@ ifndef FILE
 	@exit 1
 endif
 	@echo "$(BLUE)Analyzing $(FILE)...$(RESET)"
-	uv run code-summarizer analyze $(FILE) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(VERBOSE),--verbose,)
+	PYTHONPATH=app uv run python -m app.main analyze $(FILE) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(VERBOSE),--verbose,)
 
 version: ## Show version information
-	uv run code-summarizer version
+	PYTHONPATH=app uv run python -m app.main version
+
+test-api: ## Test all API endpoints
+	@echo "$(BLUE)Testing API endpoints...$(RESET)"
+	uv run python test_api.py
+
+test-api-detailed: ## Test API endpoints with detailed results
+	@echo "$(BLUE)Testing API endpoints with detailed results...$(RESET)"
+	uv run python test_api.py --save-results
 
 ## Build and Distribution Commands
 build: ## Build the package
@@ -162,12 +223,3 @@ check-deps: ## Check for dependency updates
 upgrade-deps: ## Upgrade dependencies
 	@echo "$(BLUE)Upgrading dependencies...$(RESET)"
 	uv sync --upgrade
-
-# Example usage targets
-example-single: ## Example: Analyze a single Python file
-	@echo "$(BLUE)Example: Analyzing main.py...$(RESET)"
-	uv run code-summarizer analyze src/code_summarizer/main.py --verbose
-
-example-help: ## Example: Show CLI help
-	@echo "$(BLUE)Example: Showing CLI help...$(RESET)"
-	uv run code-summarizer --help

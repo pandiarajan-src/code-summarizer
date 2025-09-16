@@ -113,28 +113,28 @@ main() {
     
     # 1. Black - Code formatting
     if ! run_linter "Black (formatting)" \
-        "uv run black --check --diff src/" \
-        "uv run black src/"; then
+        "uv run black --check --diff app/" \
+        "uv run black app/"; then
         overall_status=1
     fi
     
     # 2. Ruff - Linting and import sorting
     if ! run_linter "Ruff (linting)" \
-        "uv run ruff check src/" \
-        "uv run ruff check --fix src/"; then
+        "uv run ruff check app/" \
+        "uv run ruff check --fix app/"; then
         overall_status=1
     fi
     
     # 3. Ruff - Formatting check
     if ! run_linter "Ruff (formatting)" \
-        "uv run ruff format --check src/" \
-        "uv run ruff format src/"; then
+        "uv run ruff format --check app/" \
+        "uv run ruff format app/"; then
         overall_status=1
     fi
     
     # 4. MyPy - Type checking
     if ! run_linter "MyPy (type checking)" \
-        "uv run mypy src/" \
+        "uv run mypy app/" \
         ""; then
         overall_status=1
     fi
