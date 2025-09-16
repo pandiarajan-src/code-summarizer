@@ -13,7 +13,7 @@ RESET := \033[0m
 
 # Variables
 PYTHON_VERSION := 3.12
-SRC_DIR := src
+SRC_DIR := app
 TEST_DIR := tests
 
 ## Help
@@ -33,6 +33,8 @@ help: ## Show this help message
 	@echo "$(YELLOW)Examples:$(RESET)"
 	@echo "  make install-dev          # Set up development environment"
 	@echo "  make lint-fix             # Fix linting issues automatically"
+	@echo "  make run-api              # Start API server"
+	@echo "  make test-api             # Test all API endpoints"
 	@echo "  make analyze FILE=main.py # Analyze a specific file"
 	@echo "  make test-cov             # Run tests with coverage report"
 
@@ -50,11 +52,12 @@ clean: ## Clean build artifacts and caches
 	@echo "$(BLUE)Cleaning build artifacts...$(RESET)"
 	rm -rf build/
 	rm -rf dist/
-	rm -rf src/*.egg-info/
+	rm -rf app/*.egg-info/
 	rm -rf .pytest_cache/
 	rm -rf .mypy_cache/
 	rm -rf .coverage
 	rm -rf htmlcov/
+	rm -rf api_test_results_*.json
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*_summary.md" -delete
@@ -74,12 +77,17 @@ format: ## Format code with black and ruff
 	uv run black $(SRC_DIR)/
 	uv run ruff format $(SRC_DIR)/
 	uv run ruff check --fix $(SRC_DIR)/
+	uv run black *.py
+	uv run ruff format *.py
+	uv run ruff check --fix *.py
 	@echo "$(GREEN)Code formatted!$(RESET)"
 
 format-check: ## Check code formatting without making changes
 	@echo "$(BLUE)Checking code formatting...$(RESET)"
 	uv run black --check --diff $(SRC_DIR)/
 	uv run ruff format --check $(SRC_DIR)/
+	uv run black --check --diff *.py
+	uv run ruff format --check *.py
 
 type-check: ## Run mypy type checker
 	@echo "$(BLUE)Running type checker...$(RESET)"
@@ -88,21 +96,25 @@ type-check: ## Run mypy type checker
 ## Testing Commands
 test: ## Run tests
 	@echo "$(BLUE)Running tests...$(RESET)"
-	PYTHONPATH=src uv run pytest
+	PYTHONPATH=app uv run pytest
 
 test-cov: ## Run tests with coverage report
 	@echo "$(BLUE)Running tests with coverage...$(RESET)"
-	PYTHONPATH=src uv run pytest --cov --cov-report=term-missing --cov-report=html
+	PYTHONPATH=app uv run pytest --cov --cov-report=term-missing --cov-report=html
 	@echo "$(GREEN)Coverage report generated in htmlcov/$(RESET)"
 
 test-watch: ## Run tests in watch mode (requires pytest-xvs)
 	@echo "$(BLUE)Running tests in watch mode...$(RESET)"
-	PYTHONPATH=src uv run pytest -f
+	PYTHONPATH=app uv run pytest -f
 
 ## Application Commands
-run: ## Run the CLI tool (use ARGS="..." for arguments)
-	@echo "$(BLUE)Running Code Summarizer...$(RESET)"
-	uv run code-summarizer $(ARGS)
+run-cli: ## Run the CLI tool (use ARGS="..." for arguments)
+	@echo "$(BLUE)Running Code Summarizer CLI...$(RESET)"
+	PYTHONPATH=app uv run python -m app.main $(ARGS)
+
+run-api: ## Start the API server
+	@echo "$(BLUE)Starting Code Summarizer API...$(RESET)"
+	PYTHONPATH=app uv run uvicorn app.api_main:app --host 127.0.0.1 --port 8000 --reload
 
 analyze: ## Analyze a file (use FILE=path/to/file)
 ifndef FILE
@@ -111,10 +123,18 @@ ifndef FILE
 	@exit 1
 endif
 	@echo "$(BLUE)Analyzing $(FILE)...$(RESET)"
-	uv run code-summarizer analyze $(FILE) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(VERBOSE),--verbose,)
+	PYTHONPATH=app uv run python -m app.main analyze $(FILE) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(VERBOSE),--verbose,)
 
 version: ## Show version information
-	uv run code-summarizer version
+	PYTHONPATH=app uv run python -m app.main version
+
+test-api: ## Test all API endpoints
+	@echo "$(BLUE)Testing API endpoints...$(RESET)"
+	uv run python test_api.py
+
+test-api-detailed: ## Test API endpoints with detailed results
+	@echo "$(BLUE)Testing API endpoints with detailed results...$(RESET)"
+	uv run python test_api.py --save-results
 
 ## Build and Distribution Commands
 build: ## Build the package
@@ -164,10 +184,14 @@ upgrade-deps: ## Upgrade dependencies
 	uv sync --upgrade
 
 # Example usage targets
-example-single: ## Example: Analyze a single Python file
-	@echo "$(BLUE)Example: Analyzing main.py...$(RESET)"
-	uv run code-summarizer analyze src/code_summarizer/main.py --verbose
+example-cli: ## Example: Analyze a single Python file via CLI
+	@echo "$(BLUE)Example: Analyzing app/main.py via CLI...$(RESET)"
+	PYTHONPATH=app uv run python -m app.main analyze app/main.py --verbose
+
+example-api: ## Example: Start API server
+	@echo "$(BLUE)Example: Starting API server...$(RESET)"
+	make run-api
 
 example-help: ## Example: Show CLI help
 	@echo "$(BLUE)Example: Showing CLI help...$(RESET)"
-	uv run code-summarizer --help
+	PYTHONPATH=app uv run python -m app.main --help

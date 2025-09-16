@@ -124,6 +124,10 @@ async def analyze_from_paths(
 
     except (AnalysisError, FileProcessingError) as e:
         raise e
+    except (FileNotFoundError, OSError, PermissionError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Path error: {str(e)}"
+        )
     except Exception as e:
         raise AnalysisError(f"Path analysis failed: {str(e)}")
 

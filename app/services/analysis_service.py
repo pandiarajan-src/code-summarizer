@@ -1,20 +1,16 @@
 """Analysis service wrapper for integrating existing core modules with FastAPI."""
 
 # Import existing core modules
-import sys
 import time
 import uuid
 from pathlib import Path
 from typing import Any
 
-# Add src directory to Python path
-src_path = Path(__file__).parent.parent.parent / "src"
-sys.path.insert(0, str(src_path))
-
-from code_summarizer.context_manager import ContextManager
-from code_summarizer.file_processor import FileProcessor
-from code_summarizer.llm_client import LLMClient
-from code_summarizer.markdown_formatter import MarkdownFormatter
+# Import from app directory (organized structure)
+from ..core.context_manager import ContextManager
+from ..utils.file_processor import FileProcessor
+from .llm_client import LLMClient
+from ..utils.markdown_formatter import MarkdownFormatter
 
 from ..core.config import Settings
 from ..core.exceptions import AnalysisError

@@ -9,7 +9,7 @@ from typing import cast
 import yaml
 from openai import OpenAI
 
-from .prompt_loader import PromptLoader
+from ..utils.prompt_loader import PromptLoader
 
 
 class LLMClient:

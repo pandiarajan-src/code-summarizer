@@ -64,3 +64,4 @@ dmypy.json
 # Temporary files
 *.tmp
 *.temp
+api_test_results_*.json
