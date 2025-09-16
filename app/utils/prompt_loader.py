@@ -41,6 +41,9 @@ class PromptLoader:
             if not prompts_data:
                 raise ValueError("Prompts file is empty")
 
+            if not isinstance(prompts_data, dict):
+                raise ValueError("Prompts file must contain a dictionary")
+
             return prompts_data
 
         except yaml.YAMLError as e:
@@ -70,7 +73,10 @@ class PromptLoader:
         if isinstance(prompt_data, dict):
             if "prompt" not in prompt_data:
                 raise ValueError(f"Prompt '{prompt_name}' is missing 'prompt' field")
-            return prompt_data["prompt"]
+            prompt_value = prompt_data["prompt"]
+            if not isinstance(prompt_value, str):
+                raise ValueError(f"Prompt '{prompt_name}' value must be a string")
+            return prompt_value
         if isinstance(prompt_data, str):
             return prompt_data
         raise ValueError(

@@ -108,10 +108,6 @@ test-watch: ## Run tests in watch mode (requires pytest-xvs)
 	PYTHONPATH=app uv run pytest -f
 
 ## Application Commands
-run-cli: ## Run the CLI tool (use ARGS="..." for arguments)
-	@echo "$(BLUE)Running Code Summarizer CLI...$(RESET)"
-	PYTHONPATH=app uv run python -m app.main $(ARGS)
-
 run-api: ## Start the API server
 	@echo "$(BLUE)Starting Code Summarizer API...$(RESET)"
 	PYTHONPATH=app uv run uvicorn app.api_main:app --host 127.0.0.1 --port 8000 --reload
@@ -182,16 +178,3 @@ check-deps: ## Check for dependency updates
 upgrade-deps: ## Upgrade dependencies
 	@echo "$(BLUE)Upgrading dependencies...$(RESET)"
 	uv sync --upgrade
-
-# Example usage targets
-example-cli: ## Example: Analyze a single Python file via CLI
-	@echo "$(BLUE)Example: Analyzing app/main.py via CLI...$(RESET)"
-	PYTHONPATH=app uv run python -m app.main analyze app/main.py --verbose
-
-example-api: ## Example: Start API server
-	@echo "$(BLUE)Example: Starting API server...$(RESET)"
-	make run-api
-
-example-help: ## Example: Show CLI help
-	@echo "$(BLUE)Example: Showing CLI help...$(RESET)"
-	PYTHONPATH=app uv run python -m app.main --help
