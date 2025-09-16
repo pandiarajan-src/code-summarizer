@@ -4,6 +4,7 @@ import os
 import sys
 from typing import List, Optional
 
+GLOBAL_VAR = "This is a global variable"
 
 def greet(name: str, greeting: str = "Hello") -> str:
     """Greet a person with a custom message.
@@ -17,6 +18,9 @@ def greet(name: str, greeting: str = "Hello") -> str:
     """
     return f"{greeting}, {name}!"
 
+def hello_world() -> None:
+    """Print 'Hello, World!' to the console."""
+    print("Hello, World!")
 
 class Calculator:
     """A simple calculator class for basic arithmetic operations."""
