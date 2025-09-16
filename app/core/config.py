@@ -11,21 +11,26 @@ from pydantic_settings import SettingsConfigDict
 class Settings(BaseSettings):
     """Application configuration settings."""
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",  # Ignore extra fields to avoid validation errors
+    )
 
     # API Configuration
     api_title: str = "Code Summarizer API"
     api_version: str = "1.0.0"
-    debug: bool = Field(default=False, env="DEBUG")  # type: ignore[call-overload]
+    debug: bool = Field(default=False)
 
     # Server Configuration
-    host: str = Field(default="0.0.0.0", env="HOST")  # type: ignore[call-overload]
-    port: int = Field(default=8000, env="PORT")  # type: ignore[call-overload]
-    reload: bool = Field(default=False, env="RELOAD")  # type: ignore[call-overload]
+    host: str = Field(default="0.0.0.0")
+    port: int = Field(default=8000)
+    reload: bool = Field(default=False)
 
     # File Upload Configuration
-    max_file_size_mb: int = Field(default=50, env="MAX_FILE_SIZE_MB")  # type: ignore[call-overload]
-    max_files_per_request: int = Field(default=100, env="MAX_FILES_PER_REQUEST")  # type: ignore[call-overload]
+    max_file_size_mb: int = Field(default=50)
+    max_files_per_request: int = Field(default=100)
     allowed_file_types: list[str] = Field(
         default=[
             ".py",
@@ -63,20 +68,19 @@ class Settings(BaseSettings):
             ".vue",
             ".svelte",
         ],
-        env="ALLOWED_FILE_TYPES",  # type: ignore[call-overload]
     )
 
     # LLM Configuration
-    openai_api_key: str | None = Field(default=None, env="OPENAI_API_KEY")  # type: ignore[call-overload]
-    openai_base_url: str | None = Field(default=None, env="OPENAI_BASE_URL")  # type: ignore[call-overload]
-    llm_model: str = Field(default="gpt-4o", env="LLM_MODEL")  # type: ignore[call-overload]
-    llm_max_tokens: int = Field(default=4000, env="LLM_MAX_TOKENS")  # type: ignore[call-overload]
-    llm_temperature: float = Field(default=0.1, env="LLM_TEMPERATURE")  # type: ignore[call-overload]
-    llm_max_context_tokens: int = Field(default=128000, env="LLM_MAX_CONTEXT_TOKENS")  # type: ignore[call-overload]
+    openai_api_key: str | None = Field(default=None)
+    openai_base_url: str | None = Field(default=None)
+    llm_model: str = Field(default="gpt-4o")
+    llm_max_tokens: int = Field(default=4000)
+    llm_temperature: float = Field(default=0.1)
+    llm_max_context_tokens: int = Field(default=128000)
 
     # Configuration File Paths (for compatibility with existing modules)
-    config_file_path: str = Field(default="config.yaml", env="CONFIG_FILE_PATH")  # type: ignore[call-overload]
-    prompts_file_path: str = Field(default="prompts.yaml", env="PROMPTS_FILE_PATH")  # type: ignore[call-overload]
+    config_file_path: str = Field(default="config.yaml")
+    prompts_file_path: str = Field(default="prompts.yaml")
 
     # File Processing Configuration
     exclude_patterns: list[str] = Field(
@@ -114,13 +118,12 @@ class Settings(BaseSettings):
             "env.bak",
             "venv.bak",
         ],
-        env="EXCLUDE_PATTERNS",  # type: ignore[call-overload]
     )
 
     # Analysis Configuration
-    enable_batch_processing: bool = Field(default=True, env="ENABLE_BATCH_PROCESSING")  # type: ignore[call-overload]
-    max_batch_size: int = Field(default=10, env="MAX_BATCH_SIZE")  # type: ignore[call-overload]
-    enable_markdown_output: bool = Field(default=True, env="ENABLE_MARKDOWN_OUTPUT")  # type: ignore[call-overload]
+    enable_batch_processing: bool = Field(default=True)
+    max_batch_size: int = Field(default=10)
+    enable_markdown_output: bool = Field(default=True)
 
     @field_validator("max_file_size_mb")
     @classmethod
@@ -172,14 +175,6 @@ class Settings(BaseSettings):
                 "enable_markdown_output": self.enable_markdown_output,
             },
         }
-
-    class Config:
-        """Pydantic configuration."""
-
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"  # Ignore extra fields to avoid validation errors
 
 
 # Global settings instance

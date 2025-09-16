@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 from pydantic import Field
-from pydantic import validator
+from pydantic import field_validator
 
 
 class ConfigOverrides(BaseModel):
@@ -36,7 +36,8 @@ class ConfigOverrides(BaseModel):
         None, description="Patterns to exclude from processing"
     )
 
-    @validator("exclude_patterns")
+    @field_validator("exclude_patterns")
+    @classmethod
     def validate_exclude_patterns(cls, v: Any) -> Any:
         """Validate exclude patterns."""
         if v is not None and len(v) > 50:
@@ -51,14 +52,16 @@ class FileContent(BaseModel):
     content: str = Field(..., description="Content of the file")
     file_type: str | None = Field(None, description="File type/extension")
 
-    @validator("filename")
+    @field_validator("filename")
+    @classmethod
     def validate_filename(cls, v: Any) -> Any:
         """Validate filename."""
         if not v or len(v) > 255:
             raise ValueError("Filename must be 1-255 characters")
         return v
 
-    @validator("content")
+    @field_validator("content")
+    @classmethod
     def validate_content(cls, v: Any) -> Any:
         """Validate file content."""
         if len(v) > 1_000_000:  # 1MB limit for text content
@@ -80,7 +83,8 @@ class AnalysisRequest(BaseModel):
     )
     verbose: bool = Field(default=False, description="Enable verbose output")
 
-    @validator("files")
+    @field_validator("files")
+    @classmethod
     def validate_files(cls, v: Any) -> Any:
         """Validate files list."""
         if len(v) == 0:
@@ -111,7 +115,8 @@ class BatchAnalysisRequest(BaseModel):
         default=False, description="Force batch processing even for single files"
     )
 
-    @validator("files")
+    @field_validator("files")
+    @classmethod
     def validate_files(cls, v: Any) -> Any:
         """Validate files list."""
         if len(v) == 0:
@@ -140,7 +145,8 @@ class AnalysisFromPathRequest(BaseModel):
     verbose: bool = Field(default=False, description="Enable verbose output")
     recursive: bool = Field(default=True, description="Recursively process directories")
 
-    @validator("paths")
+    @field_validator("paths")
+    @classmethod
     def validate_paths(cls, v: Any) -> Any:
         """Validate paths list."""
         if len(v) == 0:

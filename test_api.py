@@ -447,7 +447,7 @@ function greet(name) {
             response = self.session.post(
                 f"{self.api_base}/analyze/upload", files=files, data=data
             )
-            success &= self.test_response("Invalid config error", response, 422)
+            success &= self.test_response("Invalid config error", response, 400)
 
         except Exception as e:
             self.log(f"❌ Invalid config error test failed: {e}", "ERROR")

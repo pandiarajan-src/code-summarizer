@@ -105,6 +105,8 @@ async def analyze_uploaded_files(
 
     except (FileTooLargeError, UnsupportedFileTypeError, TooManyFilesError) as e:
         raise HTTPException(status_code=e.status_code, detail=str(e))
+    except HTTPException:
+        raise  # Re-raise HTTPException without modification
     except (AnalysisError, FileProcessingError) as e:
         raise e
     except Exception as e:

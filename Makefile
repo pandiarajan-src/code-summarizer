@@ -25,18 +25,23 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(install|clean)" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Development Commands:$(RESET)"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(lint|format|type|test)" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(lint|format|type)" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(GREEN)Testing Commands:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "test" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Application Commands:$(RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(run|analyze|build|publish)" | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Examples:$(RESET)"
-	@echo "  make install-dev          # Set up development environment"
-	@echo "  make lint-fix             # Fix linting issues automatically"
-	@echo "  make run-api              # Start API server"
-	@echo "  make test-api             # Test all API endpoints"
-	@echo "  make analyze FILE=main.py # Analyze a specific file"
-	@echo "  make test-cov             # Run tests with coverage report"
+	@echo "  make install-dev                    # Set up development environment"
+	@echo "  make lint-fix                      # Fix linting issues automatically"
+	@echo "  make test-unit                     # Run unit tests only"
+	@echo "  make test-integration              # Run integration tests only"
+	@echo "  make test-cov                      # Run all tests with coverage"
+	@echo "  make test-specific TEST=tests/unit/test_config.py  # Run specific test"
+	@echo "  make run-api                       # Start API server"
+	@echo "  make analyze FILE=main.py          # Analyze a specific file"
 
 ## Setup Commands
 install: ## Install production dependencies
@@ -94,18 +99,58 @@ type-check: ## Run mypy type checker
 	uv run mypy $(SRC_DIR)/
 
 ## Testing Commands
-test: ## Run tests
-	@echo "$(BLUE)Running tests...$(RESET)"
-	PYTHONPATH=app uv run pytest
+test: ## Run all tests (unit and integration)
+	@echo "$(BLUE)Running all tests...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/
+
+test-unit: ## Run unit tests only
+	@echo "$(BLUE)Running unit tests...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/unit/
+
+test-integration: ## Run integration tests only
+	@echo "$(BLUE)Running integration tests...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/integration/
 
 test-cov: ## Run tests with coverage report
 	@echo "$(BLUE)Running tests with coverage...$(RESET)"
-	PYTHONPATH=app uv run pytest --cov --cov-report=term-missing --cov-report=html
+	PYTHONPATH=app uv run pytest tests/ --cov=app --cov-report=term-missing --cov-report=html
+	@echo "$(GREEN)Coverage report generated in htmlcov/$(RESET)"
+
+test-cov-unit: ## Run unit tests with coverage report
+	@echo "$(BLUE)Running unit tests with coverage...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/unit/ --cov=app --cov-report=term-missing --cov-report=html
+	@echo "$(GREEN)Coverage report generated in htmlcov/$(RESET)"
+
+test-cov-integration: ## Run integration tests with coverage report
+	@echo "$(BLUE)Running integration tests with coverage...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/integration/ --cov=app --cov-report=term-missing --cov-report=html
 	@echo "$(GREEN)Coverage report generated in htmlcov/$(RESET)"
 
 test-watch: ## Run tests in watch mode (requires pytest-xvs)
 	@echo "$(BLUE)Running tests in watch mode...$(RESET)"
-	PYTHONPATH=app uv run pytest -f
+	PYTHONPATH=app uv run pytest -f tests/
+
+test-verbose: ## Run tests with verbose output
+	@echo "$(BLUE)Running tests with verbose output...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/ -v
+
+test-fast: ## Run tests with minimal output (fast mode)
+	@echo "$(BLUE)Running tests in fast mode...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/ -q
+
+test-failed: ## Run only failed tests from last run
+	@echo "$(BLUE)Running only failed tests...$(RESET)"
+	PYTHONPATH=app uv run pytest tests/ --lf
+
+test-specific: ## Run specific test file (use TEST=path/to/test)
+ifdef TEST
+	@echo "$(BLUE)Running test: $(TEST)$(RESET)"
+	PYTHONPATH=app uv run pytest $(TEST) -v
+else
+	@echo "$(RED)Error: TEST parameter required$(RESET)"
+	@echo "Usage: make test-specific TEST=tests/unit/test_example.py"
+	@exit 1
+endif
 
 ## Application Commands
 run-api: ## Start the API server

@@ -2,6 +2,7 @@
 
 import sys
 import time
+from datetime import UTC
 from datetime import datetime
 from typing import Any
 
@@ -92,7 +93,7 @@ async def get_config(
 ) -> ConfigResponse:
     """Get current API configuration."""
     # Convert settings to dict
-    config_dict = current_settings.dict()
+    config_dict = current_settings.model_dump()
 
     # Remove sensitive values if not requested
     if not include_sensitive:
@@ -136,4 +137,4 @@ async def get_info(
 @router.get("/ping")
 async def ping() -> dict[str, str]:
     """Simple ping endpoint for basic connectivity testing."""
-    return {"message": "pong", "timestamp": datetime.utcnow().isoformat()}
+    return {"message": "pong", "timestamp": datetime.now(UTC).isoformat()}
