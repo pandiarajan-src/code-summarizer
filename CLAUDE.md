@@ -272,7 +272,106 @@ make ci                    # Full CI pipeline
 - API responses are structured as Pydantic models for OpenAPI documentation
 - File uploads in API are handled with multipart/form-data
 
+## Docker Infrastructure & Deployment
+
+### Docker Architecture
+
+The project provides two Docker deployment strategies:
+
+#### Single Container (`Dockerfile`)
+- **Purpose**: Development and simple deployments
+- **Components**: FastAPI backend + nginx frontend in one container
+- **Ports**: 80 (frontend), 8000 (direct API access)
+- **Configuration**: Uses supervisord to manage both services
+- **Access**: Frontend serves at root, API proxied at `/api/*`
+
+#### Multi-Container (`docker-compose.multi.yml`)
+- **Purpose**: Production and scalable deployments
+- **Components**: Separate API and frontend containers
+- **API Container**: `docker/api/Dockerfile` - FastAPI only
+- **Frontend Container**: `docker/frontend/Dockerfile` - nginx only
+- **Networking**: Internal Docker networking with service discovery
+
+### Docker Files Structure
+```
+docker/
+├── api/
+│   └── Dockerfile              # API-only container
+├── frontend/
+│   ├── Dockerfile              # Frontend-only container
+│   └── nginx.conf              # Multi-container nginx config
+├── nginx/
+│   └── nginx.conf              # Single-container nginx config
+├── supervisor/
+│   └── supervisord.conf        # Single-container process management
+└── scripts/
+    ├── entrypoint.sh           # Single-container startup
+    ├── frontend-entrypoint.sh  # Multi-container frontend startup
+    └── healthcheck.sh          # Health check scripts
+```
+
+### Docker Environment Configuration
+
+Required environment variables (set in `.env`):
+```bash
+OPENAI_API_KEY=your_api_key_here
+OPENAI_BASE_URL=https://api.openai.com/v1  # Optional
+MODEL_NAME=gpt-4o                          # Optional
+DEBUG=false                                # Optional
+API_TITLE=Code Summarizer API              # Optional
+```
+
+### Docker Compose Files
+- **`docker-compose.single.yml`**: Single container deployment
+- **`docker-compose.multi.yml`**: Multi-container deployment with API/frontend separation
+
 ## Recent Updates & Features
+
+### Docker Infrastructure Overhaul (2025-09-17)
+Major improvements to Docker deployment with complete fix for both single and multi-container modes:
+
+#### Fixed Docker Build Issues
+**Problem**: `make docker-single-build` and `make docker-multi-build` were failing with multiple errors
+**Solutions Implemented**:
+1. **Missing Build Dependencies**: Added `LICENSE` and `README.md` to all Dockerfiles (required by pyproject.toml)
+2. **`.env.example` Exclusion**: Removed `.env.example` from `.dockerignore` as it's needed for container builds
+3. **Dockerfile Case Sensitivity**: Fixed `FROM python:3.12-slim as python-base` to use `AS` (uppercase)
+4. **Supervisord Path Issues**: Updated supervisord.conf to use `/app/.venv/bin/uvicorn` instead of `uv run`
+5. **Nginx Permission Issues**:
+   - Changed nginx PID file location from `/var/run/nginx.pid` to `/var/log/nginx/nginx.pid`
+   - Added proper ownership for `/var/lib/nginx` directory
+   - Updated supervisord to run nginx as `appuser` instead of `root`
+
+#### Multi-Container Frontend API Connection Fix
+**Problem**: Frontend showed "Failed to connect to API" in multi-container mode
+**Root Cause**: Frontend was trying to connect to `http://${hostname}:8000` instead of using nginx proxy
+**Solutions Implemented**:
+1. **Added API Proxy to Frontend nginx**: Updated `docker/frontend/nginx.conf` with `/api/` location block
+2. **Fixed Frontend Configuration**: Modified entrypoint script to update multi-container API URL from `http://${hostname}:8000` to `window.location.origin`
+3. **Updated CSP Headers**: Removed placeholder from Content-Security-Policy header
+4. **Alpine Linux Compatibility**: Changed entrypoint script shebang from `#!/bin/bash` to `#!/bin/sh`
+
+#### Docker Permission and Cache Fixes
+**API Container Issues**:
+- **uv Cache Permissions**: Created `/home/appuser/.cache` directory with proper ownership
+- **Direct Binary Execution**: Changed CMD from `uv run uvicorn` to `/app/.venv/bin/uvicorn` to avoid cache issues
+
+#### Docker Networking and Service Discovery
+**Multi-Container Setup**:
+- **Internal Networking**: API accessible as `http://api:8000` from frontend container
+- **Health Checks**: Both containers have proper health checks with curl commands
+- **Dependency Management**: Frontend waits for API health before starting
+- **Log Management**: Separate log volumes for each service
+
+#### Current Docker Status
+✅ **Single Container**: `make docker-single-build` - Fully functional
+- Frontend: `http://localhost`
+- API: `http://localhost/api` (proxied) or `http://localhost:8000` (direct - with connection issues)
+
+✅ **Multi-Container**: `make docker-multi-build` - Fully functional
+- Frontend: `http://localhost`
+- API: `http://localhost:8000` (direct) or `http://localhost/api` (proxied)
+- Both containers healthy with proper networking
 
 ### Frontend Web Application (Latest - 2025-09-17)
 Complete single-page web application for the Code Summarizer API:
@@ -402,6 +501,118 @@ for i, br in enumerate(batch_results):
 3. Check token limits in configuration
 4. Review `app/services/llm_client.py` for response parsing
 
+### Docker-Specific Issues and Solutions
+
+#### Docker Build Failures
+**Symptom**: `make docker-single-build` or `make docker-multi-build` fails during build
+**Common Causes and Solutions**:
+
+1. **Missing LICENSE/README.md files**:
+   ```bash
+   # Error: "License file does not exist: LICENSE"
+   # Solution: Ensure LICENSE and README.md exist in project root
+   ls -la LICENSE README.md
+   ```
+
+2. **`.env.example` not found**:
+   ```bash
+   # Error: ".env.example: not found"
+   # Solution: Check .dockerignore doesn't exclude .env.example
+   grep -v "^.env.example$" .dockerignore
+   ```
+
+3. **Permission denied errors**:
+   ```bash
+   # Error: "mkdir() failed (13: Permission denied)"
+   # Solution: Check Dockerfile creates directories with proper ownership
+   # Ensure appuser has permissions for /var/lib/nginx, /var/log/nginx
+   ```
+
+#### Container Startup Issues
+**Symptom**: Containers build successfully but fail to start or are unhealthy
+
+1. **API Container Issues**:
+   ```bash
+   # Check API container logs
+   docker logs code-summarizer-api-1
+
+   # Common issues:
+   # - uv cache permission denied: Fixed by creating /home/appuser/.cache
+   # - Command not found: Use /app/.venv/bin/uvicorn instead of uv run
+   ```
+
+2. **Frontend Container Issues**:
+   ```bash
+   # Check frontend container logs
+   docker logs code-summarizer-frontend-1
+
+   # Common issues:
+   # - /bin/bash not found: Use #!/bin/sh for Alpine Linux
+   # - nginx permission denied: Check nginx runs as appuser with proper directories
+   ```
+
+#### Frontend API Connection Issues
+**Symptom**: Frontend loads but shows "Failed to connect to API"
+**Multi-Container Specific**:
+1. **Check API is accessible from frontend container**:
+   ```bash
+   docker exec code-summarizer-frontend-1 wget -O - http://api:8000/api/health
+   ```
+
+2. **Verify nginx proxy configuration**:
+   ```bash
+   # Should have /api/ location block pointing to api:8000
+   docker exec code-summarizer-frontend-1 cat /etc/nginx/nginx.conf | grep -A5 "location /api"
+   ```
+
+3. **Check frontend configuration was updated**:
+   ```bash
+   # Should show "multi: window.location.origin" not "multi: `http://${hostname}:8000`"
+   docker exec code-summarizer-frontend-1 grep -A3 -B3 "multi:" /usr/share/nginx/html/index.html
+   ```
+
+#### Docker Networking Issues
+**Symptom**: Containers can't communicate with each other
+**Solutions**:
+1. **Verify containers are on same network**:
+   ```bash
+   docker network ls
+   docker network inspect code-summarizer_code-summarizer-net
+   ```
+
+2. **Test service discovery**:
+   ```bash
+   docker exec code-summarizer-frontend-1 nslookup api
+   docker exec code-summarizer-api-1 nslookup frontend
+   ```
+
+#### Docker Performance Issues
+**Symptom**: Containers start slowly or consume excessive resources
+**Solutions**:
+1. **Check container resource usage**:
+   ```bash
+   docker stats
+   ```
+
+2. **Review health check intervals**:
+   ```yaml
+   # In docker-compose files, reduce frequency if needed
+   healthcheck:
+     interval: 30s    # Increase if too frequent
+     timeout: 10s
+     retries: 3
+   ```
+
+#### Docker Cleanup and Reset
+**When all else fails**:
+```bash
+# Complete cleanup and rebuild
+make docker-clean
+docker system prune -a
+docker volume prune
+make docker-multi-build  # or docker-single-build
+```
+
 ## Quick Start Guide
 
 ### Running the Complete System
@@ -434,13 +645,45 @@ for i, br in enumerate(batch_results):
 
 ### Docker Deployment
 
+The project supports two Docker deployment modes:
+
+#### Single Container (Development/Simple Deployment)
 ```bash
-# Build and run both frontend and API
-docker-compose up -d
+# Build and start single container (API + Frontend)
+make docker-single-build
 
 # Access at:
-# - Frontend: http://localhost:8080
-# - API: http://localhost:8000
+# - Frontend: http://localhost
+# - API: http://localhost/api
+```
+
+#### Multi-Container (Production/Scalable Deployment)
+```bash
+# Build and start multi-container setup (separate API and Frontend)
+make docker-multi-build
+
+# Access at:
+# - Frontend: http://localhost
+# - API: http://localhost:8000 (direct) or http://localhost/api (proxied)
+```
+
+#### Docker Management Commands
+```bash
+# Start existing containers
+make docker-single          # Single container mode
+make docker-multi            # Multi-container mode
+
+# Stop all containers
+make docker-down
+
+# Check container health
+make docker-health
+
+# View container logs
+make docker-logs
+
+# Clean up Docker resources
+make docker-clean
 ```
 
 ### Testing the System

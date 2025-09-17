@@ -116,9 +116,43 @@
 
     <!-- Configuration -->
     <script>
+        // Dynamic API Configuration
+        function getApiBaseUrl() {
+            // Check if running in Docker with environment-based configuration
+            const containerMode = window.CONTAINER_MODE || 'development';
+            const hostname = window.location.hostname;
+            const port = window.location.port;
+
+            // Default configurations for different environments
+            const configs = {
+                // Single container: API is proxied through same host
+                single: window.location.origin,
+
+                // Multi container: API runs on different service
+                multi: `http://${hostname}:8000`,
+
+                // Development: Local development setup
+                development: 'http://127.0.0.1:8000',
+
+                // Production: Override with environment variable if available
+                production: window.API_BASE_URL || window.location.origin
+            };
+
+            // Auto-detect based on current URL
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                // Local development
+                return port === '80' || port === '' ?
+                    window.location.origin :
+                    'http://127.0.0.1:8000';
+            } else {
+                // Production deployment
+                return configs[containerMode] || window.location.origin;
+            }
+        }
+
         // API Configuration
         window.API_CONFIG = {
-            baseUrl: 'http://127.0.0.1:8000',
+            baseUrl: getApiBaseUrl(),
             endpoints: {
                 health: '/api/health',
                 analyze: '/api/analyze/upload',
