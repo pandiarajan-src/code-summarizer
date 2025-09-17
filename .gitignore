@@ -65,3 +65,4 @@ dmypy.json
 *.tmp
 *.temp
 api_test_results_*.json
+logs/

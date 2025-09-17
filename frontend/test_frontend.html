@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Code Summarizer Frontend API Test</h1>
+
+    <div class="test-section">
+        <h2>API Connection Test</h2>
+        <button onclick="testApiHealth()">Test API Health</button>
+        <button onclick="testSupportedTypes()">Test Supported Types</button>
+        <div id="connection-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>File Upload Test</h2>
+        <input type="file" id="testFile" accept=".py,.js,.txt">
+        <button onclick="testFileUpload()">Test File Upload</button>
+        <div id="upload-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Frontend Features Test</h2>
+        <button onclick="testMarkdownRendering()">Test Markdown Rendering</button>
+        <button onclick="testProgressBar()">Test Progress Bar</button>
+        <div id="frontend-results"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+
+        function displayResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            container.appendChild(div);
+        }
+
+        function clearResults(containerId) {
+            document.getElementById(containerId).innerHTML = '';
+        }
+
+        async function testApiHealth() {
+            clearResults('connection-results');
+            try {
+                displayResult('connection-results', 'Testing API health endpoint...', 'info');
+
+                const response = await fetch(`${API_BASE_URL}/api/health`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                displayResult('connection-results', `✅ API Health Check Passed!<br><pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+
+            } catch (error) {
+                displayResult('connection-results', `❌ API Health Check Failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSupportedTypes() {
+            try {
+                displayResult('connection-results', 'Testing supported types endpoint...', 'info');
+
+                const response = await fetch(`${API_BASE_URL}/api/analyze/supported-types`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                displayResult('connection-results', `✅ Supported Types Retrieved!<br>Extensions: ${data.supported_extensions.slice(0, 10).join(', ')}...`, 'success');
+
+            } catch (error) {
+                displayResult('connection-results', `❌ Supported Types Test Failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testFileUpload() {
+            clearResults('upload-results');
+            const fileInput = document.getElementById('testFile');
+
+            if (!fileInput.files.length) {
+                displayResult('upload-results', '⚠️ Please select a file first', 'error');
+                return;
+            }
+
+            try {
+                displayResult('upload-results', 'Testing file upload and analysis...', 'info');
+
+                const formData = new FormData();
+                formData.append('files', fileInput.files[0]);
+                formData.append('output_format', 'markdown');
+                formData.append('verbose', 'false');
+                formData.append('extract_archives', 'true');
+
+                const response = await fetch(`${API_BASE_URL}/api/analyze/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const summary = {
+                    success: result.success,
+                    analysisId: result.analysis_id,
+                    filesAnalyzed: result.files_analyzed,
+                    tokensUsed: result.total_tokens_used,
+                    processingTime: result.total_processing_time_seconds,
+                    hasMarkdown: !!result.markdown_output
+                };
+
+                displayResult('upload-results', `✅ File Upload and Analysis Successful!<br><pre>${JSON.stringify(summary, null, 2)}</pre>`, 'success');
+
+                if (result.markdown_output) {
+                    const truncatedMarkdown = result.markdown_output.substring(0, 500) + '...';
+                    displayResult('upload-results', `📝 Markdown Output Preview:<br><pre>${truncatedMarkdown}</pre>`, 'info');
+                }
+
+            } catch (error) {
+                displayResult('upload-results', `❌ File Upload Test Failed: ${error.message}`, 'error');
+            }
+        }
+
+        function testMarkdownRendering() {
+            clearResults('frontend-results');
+
+            const testMarkdown = `# Test Markdown Rendering
+
+## Code Example
+\`\`\`python
+def hello_world():
+    print("Hello, World!")
+    return True
+\`\`\`
+
+## Features
+- **Bold text**
+- *Italic text*
+- \`inline code\`
+
+> This is a blockquote
+
+### Table
+| Feature | Status |
+|---------|--------|
+| Upload | ✅ |
+| Analysis | ✅ |`;
+
+            try {
+                const htmlContent = marked.parse(testMarkdown);
+                const sanitizedContent = DOMPurify.sanitize(htmlContent);
+
+                displayResult('frontend-results', '✅ Markdown rendering works correctly!', 'success');
+                displayResult('frontend-results', `📝 Rendered Content:<br><div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">${sanitizedContent}</div>`, 'info');
+
+            } catch (error) {
+                displayResult('frontend-results', `❌ Markdown rendering failed: ${error.message}`, 'error');
+            }
+        }
+
+        function testProgressBar() {
+            clearResults('frontend-results');
+
+            displayResult('frontend-results', '🔄 Testing progress bar animation...', 'info');
+
+            // Create a test progress bar
+            const progressHTML = `
+                <div style="background: #e9ecef; border-radius: 20px; height: 12px; margin: 10px 0; overflow: hidden;">
+                    <div id="testProgress" style="background: linear-gradient(90deg, #007bff, #0056b3); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 20px;"></div>
+                </div>
+                <div id="progressText">Starting...</div>
+            `;
+
+            displayResult('frontend-results', progressHTML, 'info');
+
+            // Animate progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                const progressBar = document.getElementById('testProgress');
+                const progressText = document.getElementById('progressText');
+
+                if (progressBar && progressText) {
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `Progress: ${progress}%`;
+
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        displayResult('frontend-results', '✅ Progress bar animation works correctly!', 'success');
+                    }
+                }
+            }, 200);
+        }
+
+        // Auto-run basic tests on page load
+        window.addEventListener('load', async () => {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+            await testApiHealth();
+            await testSupportedTypes();
+        });
+    </script>
+</body>
+</html>

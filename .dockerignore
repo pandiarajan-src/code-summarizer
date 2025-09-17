@@ -1,0 +1,129 @@
+# Docker ignore file for Code Summarizer
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env.local
+.env.development
+.env.test
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.metadata
+*.tmp
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test and coverage
+.coverage
+.pytest_cache/
+.tox/
+.nox/
+htmlcov/
+.coverage.*
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Documentation
+docs/_build/
+.readthedocs.yml
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Logs
+*.log
+logs/
+log/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Build artifacts
+*.tar.gz
+*.zip
+*.tar
+*.rar
+
+# Development and testing files
+test_*.py
+*_test.py
+sample_*.md
+api_test_*.json
+
+# Docker files (avoid recursion)
+docker-compose.override.yml
+Dockerfile.dev
+*.dockerfile
+
+# Environment files (will be handled specifically)
+# .env.example is needed for Docker build
+.env.dev
+.env.prod
+
+# Node modules (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+
+# Application specific
+frontend/test_*.html
+frontend/api_test_*.md
+frontend/*_output.md

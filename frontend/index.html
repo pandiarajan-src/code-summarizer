@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Summarizer</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+</head>
+<body>
+    <!-- Banner Section -->
+    <header class="banner">
+        <div class="banner-content">
+            <h1 class="banner-title">Code Summarizer</h1>
+            <div class="api-version" id="apiVersion">Loading...</div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="upload-container">
+                <!-- Left Side: Upload Controls -->
+                <div class="upload-left">
+                    <h2>Upload Code Files</h2>
+                    <p class="upload-description">
+                        Upload a single code file or ZIP archive containing multiple files for analysis.
+                        <br>
+                        <a href="#" id="supportedLangsLink" target="_blank">View supported programming languages</a>
+                    </p>
+
+                    <div class="file-input-container">
+                        <input type="file" id="fileInput" accept=".py,.js,.ts,.java,.cpp,.c,.h,.hpp,.cs,.rb,.go,.php,.rs,.swift,.kt,.scala,.r,.m,.html,.css,.xml,.json,.yaml,.yml,.md,.txt,.zip" multiple>
+                        <label for="fileInput" class="file-input-label">
+                            <span class="browse-btn">Browse Files</span>
+                            <span class="file-info" id="fileInfo">No files selected</span>
+                        </label>
+                    </div>
+
+                    <div class="upload-options">
+                        <label>
+                            <input type="checkbox" id="extractArchives" checked>
+                            Extract ZIP archives
+                        </label>
+                        <label>
+                            <input type="checkbox" id="verboseOutput">
+                            Verbose output
+                        </label>
+                    </div>
+
+                    <button id="analyzeBtn" class="analyze-btn" disabled>
+                        <span class="btn-text">Analyze Code</span>
+                        <span class="btn-loader" style="display: none;">Analyzing...</span>
+                    </button>
+                </div>
+
+                <!-- Right Side: Progress -->
+                <div class="upload-right">
+                    <h3>Progress</h3>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">Ready to upload</div>
+                    </div>
+
+                    <div class="progress-details" id="progressDetails">
+                        <div class="progress-step">
+                            <span class="step-icon" id="uploadIcon">⏳</span>
+                            <span class="step-text">Upload: Ready</span>
+                        </div>
+                        <div class="progress-step">
+                            <span class="step-icon" id="analyzeIcon">⏳</span>
+                            <span class="step-text">Analysis: Waiting</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <div class="results-header">
+                <h2>Analysis Results</h2>
+                <div class="results-actions">
+                    <button id="downloadBtn" class="download-btn">
+                        📥 Download Report
+                    </button>
+                    <button id="clearBtn" class="clear-btn">
+                        🗑️ Clear Results
+                    </button>
+                </div>
+            </div>
+
+            <!-- Markdown Preview -->
+            <div class="markdown-preview" id="markdownPreview">
+                <!-- Analysis results will be displayed here -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Supported Languages Modal -->
+    <div id="supportedLangsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Supported Programming Languages</h3>
+                <span class="close-modal" id="closeModal">&times;</span>
+            </div>
+            <div class="modal-body" id="supportedLangsList">
+                Loading...
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration -->
+    <script>
+        // Dynamic API Configuration
+        function getApiBaseUrl() {
+            // Check if running in Docker with environment-based configuration
+            const containerMode = window.CONTAINER_MODE || 'development';
+            const hostname = window.location.hostname;
+            const port = window.location.port;
+
+            // Default configurations for different environments
+            const configs = {
+                // Single container: API is proxied through same host
+                single: window.location.origin,
+
+                // Multi container: API runs on different service
+                multi: `http://${hostname}:8000`,
+
+                // Development: Local development setup
+                development: 'http://127.0.0.1:8000',
+
+                // Production: Override with environment variable if available
+                production: window.API_BASE_URL || window.location.origin
+            };
+
+            // Auto-detect based on current URL
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                // Local development
+                return port === '80' || port === '' ?
+                    window.location.origin :
+                    'http://127.0.0.1:8000';
+            } else {
+                // Production deployment
+                return configs[containerMode] || window.location.origin;
+            }
+        }
+
+        // API Configuration
+        window.API_CONFIG = {
+            baseUrl: getApiBaseUrl(),
+            endpoints: {
+                health: '/api/health',
+                analyze: '/api/analyze/upload',
+                batchAnalyze: '/api/analyze/batch/upload',
+                supportedTypes: '/api/analyze/supported-types',
+                validate: '/api/analyze/validate'
+            }
+        };
+    </script>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

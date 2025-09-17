@@ -2,7 +2,7 @@
 # Requires: uv (https://github.com/astral-sh/uv)
 
 .DEFAULT_GOAL := help
-.PHONY: help install install-dev clean lint lint-fix format format-check type-check test test-cov run analyze build publish pre-commit
+.PHONY: help install install-dev clean lint lint-fix format format-check type-check test test-cov run analyze build publish pre-commit docker-help docker-single docker-multi docker-build docker-down docker-logs docker-health docker-clean
 
 # Colors
 BLUE := \033[36m
@@ -40,6 +40,8 @@ help: ## Show this help message
 	@echo "  make test-integration              # Run integration tests only"
 	@echo "  make test-cov                      # Run all tests with coverage"
 	@echo "  make test-specific TEST=tests/unit/test_config.py  # Run specific test"
+	@echo "  make test-api                      # Test all API endpoints"
+	@echo "  make test-api-detailed             # Test API endpoints with detailed results"
 	@echo "  make run-api                       # Start API server"
 	@echo "  make analyze FILE=main.py          # Analyze a specific file"
 
@@ -223,3 +225,128 @@ check-deps: ## Check for dependency updates
 upgrade-deps: ## Upgrade dependencies
 	@echo "$(BLUE)Upgrading dependencies...$(RESET)"
 	uv sync --upgrade
+
+## Docker Commands
+docker-help: ## Show Docker deployment help
+	@echo "$(BLUE)Docker Deployment Commands:$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Setup:$(RESET)"
+	@echo "  make docker-env          Create .env file for Docker"
+	@echo ""
+	@echo "$(GREEN)Single Container (Recommended for Development):$(RESET)"
+	@echo "  make docker-single       Start single container (API + Frontend)"
+	@echo "  make docker-single-build Build and start single container"
+	@echo ""
+	@echo "$(GREEN)Multi Container (Recommended for Production):$(RESET)"
+	@echo "  make docker-multi        Start multi-container setup"
+	@echo "  make docker-multi-build  Build and start multi-container setup"
+	@echo ""
+	@echo "$(GREEN)Management:$(RESET)"
+	@echo "  make docker-down         Stop all containers"
+	@echo "  make docker-logs         Show container logs"
+	@echo "  make docker-health       Check container health"
+	@echo "  make docker-clean        Clean up Docker resources"
+	@echo ""
+	@echo "$(GREEN)Access:$(RESET)"
+	@echo "  Frontend: http://localhost"
+	@echo "  API: http://localhost:8000"
+
+docker-env: ## Create .env file for Docker deployment
+	@echo "$(BLUE)Creating Docker environment file...$(RESET)"
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "$(GREEN)Created .env file$(RESET)"; \
+	else \
+		echo "$(YELLOW).env file already exists$(RESET)"; \
+	fi
+	@echo "$(YELLOW)Please edit .env and add your OpenAI API key:$(RESET)"
+	@echo "  OPENAI_API_KEY=your_api_key_here"
+
+docker-single: docker-env ## Start single container (API + Frontend)
+	@echo "$(BLUE)Starting single container deployment...$(RESET)"
+	docker-compose -f docker-compose.single.yml up -d
+	@echo "$(GREEN)Single container started!$(RESET)"
+	@echo "Frontend: http://localhost"
+	@echo "API: http://localhost:8000"
+
+docker-single-build: docker-env ## Build and start single container
+	@echo "$(BLUE)Building and starting single container...$(RESET)"
+	docker-compose -f docker-compose.single.yml up -d --build
+	@echo "$(GREEN)Single container built and started!$(RESET)"
+
+docker-multi: docker-env ## Start multi-container setup
+	@echo "$(BLUE)Starting multi-container deployment...$(RESET)"
+	docker-compose -f docker-compose.multi.yml up -d
+	@echo "$(GREEN)Multi-container setup started!$(RESET)"
+	@echo "Frontend: http://localhost"
+	@echo "API: http://localhost:8000"
+
+docker-multi-build: docker-env ## Build and start multi-container setup
+	@echo "$(BLUE)Building and starting multi-container setup...$(RESET)"
+	docker-compose -f docker-compose.multi.yml up -d --build
+	@echo "$(GREEN)Multi-container setup built and started!$(RESET)"
+
+docker-down: ## Stop all Docker containers
+	@echo "$(BLUE)Stopping Docker containers...$(RESET)"
+	@if [ -f docker-compose.single.yml ]; then \
+		docker-compose -f docker-compose.single.yml down; \
+	fi
+	@if [ -f docker-compose.multi.yml ]; then \
+		docker-compose -f docker-compose.multi.yml down; \
+	fi
+	@echo "$(GREEN)All containers stopped$(RESET)"
+
+docker-logs: ## Show container logs
+	@echo "$(BLUE)Showing container logs...$(RESET)"
+	@if docker-compose -f docker-compose.single.yml ps | grep -q "Up"; then \
+		docker-compose -f docker-compose.single.yml logs -f; \
+	elif docker-compose -f docker-compose.multi.yml ps | grep -q "Up"; then \
+		docker-compose -f docker-compose.multi.yml logs -f; \
+	else \
+		echo "$(YELLOW)No running containers found$(RESET)"; \
+	fi
+
+docker-health: ## Check container health
+	@echo "$(BLUE)Checking container health...$(RESET)"
+	@if docker-compose -f docker-compose.single.yml ps | grep -q "Up"; then \
+		echo "$(GREEN)Single container status:$(RESET)"; \
+		docker-compose -f docker-compose.single.yml ps; \
+		echo ""; \
+		echo "$(BLUE)Health checks:$(RESET)"; \
+		curl -f http://localhost/health 2>/dev/null && echo "✓ Frontend healthy" || echo "✗ Frontend unhealthy"; \
+		curl -f http://localhost:8000/api/health 2>/dev/null && echo "✓ API healthy" || echo "✗ API unhealthy"; \
+	elif docker-compose -f docker-compose.multi.yml ps | grep -q "Up"; then \
+		echo "$(GREEN)Multi-container status:$(RESET)"; \
+		docker-compose -f docker-compose.multi.yml ps; \
+		echo ""; \
+		echo "$(BLUE)Health checks:$(RESET)"; \
+		curl -f http://localhost/health 2>/dev/null && echo "✓ Frontend healthy" || echo "✗ Frontend unhealthy"; \
+		curl -f http://localhost:8000/api/health 2>/dev/null && echo "✓ API healthy" || echo "✗ API unhealthy"; \
+	else \
+		echo "$(YELLOW)No running containers found$(RESET)"; \
+	fi
+
+docker-clean: docker-down ## Clean up Docker resources
+	@echo "$(BLUE)Cleaning up Docker resources...$(RESET)"
+	docker system prune -f
+	@echo "$(GREEN)Docker cleanup complete$(RESET)"
+
+docker-shell: ## Access container shell
+	@echo "$(BLUE)Accessing container shell...$(RESET)"
+	@if docker-compose -f docker-compose.single.yml ps | grep -q "Up"; then \
+		docker-compose -f docker-compose.single.yml exec code-summarizer /bin/bash; \
+	elif docker-compose -f docker-compose.multi.yml ps | grep -q "Up"; then \
+		echo "Select container:"; \
+		echo "1) API container"; \
+		echo "2) Frontend container"; \
+		read -p "Enter choice (1-2): " choice; \
+		if [ "$$choice" = "1" ]; then \
+			docker-compose -f docker-compose.multi.yml exec api /bin/bash; \
+		elif [ "$$choice" = "2" ]; then \
+			docker-compose -f docker-compose.multi.yml exec frontend /bin/sh; \
+		else \
+			echo "Invalid choice"; \
+		fi; \
+	else \
+		echo "$(YELLOW)No running containers found$(RESET)"; \
+	fi

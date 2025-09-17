@@ -156,7 +156,14 @@ class AnalysisService:
             if output_format in ["markdown", "both"]:
                 try:
                     # Convert batch results back to legacy format for markdown formatter
-                    legacy_analysis_results = [br.batch_summary for br in batch_results]
+                    # Need to reconstruct the full analysis results including file details
+                    legacy_analysis_results = []
+                    for i, br in enumerate(batch_results):
+                        # Get the original batch analysis result from LLM client
+                        batch = batches[i]
+                        full_result = self.llm_client.analyze_batch(batch)
+                        legacy_analysis_results.append(full_result)
+
                     markdown_output = self.markdown_formatter.format_results(
                         files_data, legacy_analysis_results
                     )
