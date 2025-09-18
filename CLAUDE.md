@@ -697,3 +697,127 @@ curl -X POST -F "files=@tests/data/sample.py" \
      -F "output_format=markdown" \
      http://127.0.0.1:8000/api/analyze/upload
 ```
+
+## Recent Updates & Features
+
+### Dark Mode Implementation (2025-09-18)
+Complete dark mode feature implementation for the frontend application:
+
+#### Features Added
+- **Toggle Switch**: Elegant toggle switch in the header banner (sun/moon icons)
+- **Default Dark Mode**: Application defaults to dark mode on first visit
+- **Theme Persistence**: User preference saved in localStorage across sessions
+- **Seamless Switching**: Smooth transitions between light and dark themes
+- **Complete UI Coverage**: All elements (fonts, backgrounds, banners, buttons, modals) support both themes
+
+#### Technical Implementation
+- **CSS Variables**: Used CSS custom properties for theme management:
+  ```css
+  :root {
+      /* Light Mode Colors */
+      --bg-primary: #ffffff;
+      --text-primary: #1a1a1a;
+      --primary-blue: #0071c5;
+  }
+
+  [data-theme="dark"] {
+      /* Dark Mode Colors */
+      --bg-primary: #0d1117;
+      --text-primary: #e6edf3;
+      --primary-blue: #58a6ff;
+  }
+  ```
+- **JavaScript Theme Management**: Robust theme initialization and switching
+- **GitHub-Inspired Color Palette**: Professional dark theme using GitHub's color scheme
+- **localStorage Integration**: Persists user preference between sessions
+
+#### Critical Fixes Applied
+
+##### Docker JavaScript Execution Issue
+**Problem**: JavaScript loaded but didn't execute in Docker environment, preventing dark mode functionality.
+
+**Root Causes**:
+1. **Nginx MIME Type**: JavaScript files not served with correct MIME type
+2. **Double Event Registration**: App initialized twice creating duplicate event listeners
+3. **Docker Caching**: Changes not reflected due to Docker build cache
+
+**Solutions Implemented**:
+
+1. **Fixed Nginx MIME Type Configuration** (`docker/nginx/nginx.conf`):
+   ```nginx
+   # JavaScript files with correct MIME type
+   location ~* \.js$ {
+       add_header Content-Type "application/javascript; charset=utf-8";
+       expires 1y;
+       add_header Cache-Control "public, immutable";
+       add_header Vary "Accept-Encoding";
+       gzip_static on;
+   }
+   ```
+
+2. **Fixed Double Initialization** (`frontend/js/app.js`):
+   ```javascript
+   // Single initialization with proper singleton pattern
+   function initializeApp() {
+       if (window.codeSummarizerApp) {
+           return; // Prevent duplicate initialization
+       }
+       try {
+           window.codeSummarizerApp = new CodeSummarizerApp();
+       } catch (error) {
+           console.error('Failed to create CodeSummarizerApp:', error);
+       }
+   }
+   ```
+
+3. **Fixed Docker Build Caching** (`Makefile`):
+   ```bash
+   # Updated docker build commands to force fresh builds
+   docker-single-build: docker-env
+       docker-compose -f docker-compose.single.yml build --no-cache --pull
+       docker-compose -f docker-compose.single.yml up -d
+
+   docker-multi-build: docker-env
+       docker-compose -f docker-compose.multi.yml build --no-cache --pull
+       docker-compose -f docker-compose.multi.yml up -d
+   ```
+
+#### Code Quality Improvements
+- **Debug Cleanup**: Removed excessive console logging while preserving error handling
+- **Production Ready**: Clean, minimal console output suitable for production
+- **Performance**: Optimized JavaScript execution with singleton pattern
+- **Maintainability**: Well-structured CSS and JavaScript for easy future modifications
+
+#### Files Modified
+- `frontend/index.html`: Added dark mode toggle switch in banner
+- `frontend/css/styles.css`: Complete theme system with CSS variables
+- `frontend/js/app.js`: Theme management JavaScript functionality
+- `docker/nginx/nginx.conf`: Fixed JavaScript MIME type serving
+- `Makefile`: Added `--no-cache --pull` flags to Docker build commands
+
+#### Testing Verified
+✅ **Local Development**: Toggle works correctly in local environment
+✅ **Docker Single Container**: Full functionality in single container mode
+✅ **Docker Multi-Container**: Full functionality in multi-container mode
+✅ **Theme Persistence**: Settings saved across browser sessions
+✅ **All UI Elements**: Complete theme coverage for all interface components
+
+#### Future Maintenance Notes
+- Theme colors defined in CSS custom properties in `styles.css`
+- Toggle behavior managed in `app.js` `initializeTheme()` and `toggleTheme()` methods
+- Docker builds now use `--no-cache --pull` to prevent caching issues
+- JavaScript MIME type explicitly set in nginx configuration to ensure execution
+
+### Troubleshooting Reference
+
+#### Common Dark Mode Issues
+1. **Toggle appears as checkbox**: Check nginx MIME type configuration for JavaScript files
+2. **JavaScript not executing**: Ensure `Content-Type: application/javascript; charset=utf-8` is set
+3. **Double toggle behavior**: Verify singleton pattern in app initialization
+4. **Changes not reflected in Docker**: Use `make docker-down && make docker-single-build` with `--no-cache`
+
+#### Docker Build Best Practices
+- Always use `make docker-down` before rebuilding to stop existing containers
+- Use `make docker-single-build` or `make docker-multi-build` for fresh builds with `--no-cache`
+- Check container health with `make docker-health` after deployment
+- View logs with `make docker-logs` if issues occur
