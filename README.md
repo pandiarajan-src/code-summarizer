@@ -12,6 +12,9 @@ An AI-powered CLI tool that analyzes source code files and projects to generate 
 - **📝 Markdown Output**: Generates structured, readable analysis reports
 - **🔗 Dependency Tracking**: Identifies relationships between files and external dependencies
 - **⚡ Context Management**: Intelligent token counting and content optimization
+- **🌐 Web Interface**: Complete frontend web application with file upload and analysis
+- **🌙 Dark Mode**: Toggle between light and dark themes with persistent user preferences
+- **🐳 Docker Support**: Single and multi-container deployment options
 
 ## Requirements
 
@@ -249,6 +252,10 @@ make test-verbose
 
 # Run only failed tests from last run
 make test-failed
+
+# API testing
+make test-api              # Test all API endpoints
+make test-api-detailed     # Test API endpoints with detailed results
 ```
 
 #### Using the Test Runner Script
@@ -439,11 +446,19 @@ OPENAI_API_KEY=your_azure_key
 
 ## How It Works
 
+### CLI Mode
 1. **File Processing**: Extracts code files from input (single file, directory, or zip)
 2. **Context Management**: Calculates token usage and creates optimal batches
 3. **Language Detection**: Identifies programming languages from extensions and content
 4. **LLM Analysis**: Sends batches to LLM for intelligent code analysis
 5. **Markdown Generation**: Formats results into structured, readable reports
+
+### Web Interface Mode
+1. **File Upload**: Drag-and-drop or browse to select files/archives
+2. **Real-time Processing**: Live progress updates during analysis
+3. **Interactive Results**: View analysis in-browser with markdown rendering
+4. **Download Reports**: Save analysis results as markdown files
+5. **Theme Preferences**: Light/dark mode with persistent settings
 
 ## Token Management
 
@@ -454,22 +469,148 @@ The tool automatically handles token limits by:
 
 ## Project Structure
 
+### Backend (API & CLI)
+```
+app/
+├── main.py                      # CLI entry point
+├── api_main.py                  # FastAPI application
+├── core/                        # Core infrastructure
+│   ├── config.py               # Pydantic settings
+│   ├── context_manager.py      # Token management
+│   └── exceptions.py           # Custom exceptions
+├── services/                    # Business logic
+│   ├── llm_client.py          # OpenAI integration
+│   └── analysis_service.py    # API business logic
+├── utils/                       # Utilities
+│   ├── file_processor.py      # File handling
+│   ├── markdown_formatter.py  # Report generation
+│   └── prompt_loader.py       # Prompt management
+├── models/                      # Pydantic models
+│   ├── requests.py            # API request models
+│   └── responses.py           # API response models
+└── api/                         # FastAPI routes
+    └── routes/
+        ├── analyze.py         # Analysis endpoints
+        └── health.py          # Health checks
+```
+
+### Frontend (Web Application)
+```
+frontend/
+├── index.html              # Main single-page application
+├── css/
+│   └── styles.css         # Intel-inspired theme with dark mode
+├── js/
+│   └── app.js            # Application logic and API integration
+├── config.js              # Frontend configuration
+├── README.md              # Frontend documentation
+├── DEPLOYMENT.md          # Deployment guide
+├── Dockerfile             # Container configuration
+├── nginx.conf            # Production web server config
+├── start.sh              # Development server script
+└── test_frontend.html    # API testing interface
+```
+
+### Configuration & Docker
 ```
 code-summarizer/
-├── src/code_summarizer/         # Main package
-│   ├── __init__.py
-│   ├── main.py                  # CLI entry point
-│   ├── file_processor.py        # File/zip handling
-│   ├── llm_client.py           # OpenAI API integration
-│   ├── context_manager.py      # Token management
-│   ├── prompts.py              # LLM prompts
-│   └── markdown_formatter.py   # Report generation
-├── config.yaml                 # Configuration
+├── config.yaml                 # CLI configuration
+├── prompts.yaml               # LLM prompts
 ├── pyproject.toml             # Project metadata & dependencies
 ├── uv.lock                    # Locked dependencies
 ├── .env.example               # Environment template
-├── .python-version            # Python version
-└── README.md                  # Documentation
+├── Makefile                   # Development commands
+├── docker-compose.single.yml  # Single container deployment
+├── docker-compose.multi.yml   # Multi-container deployment
+├── Dockerfile                 # Single container config
+└── docker/                    # Docker infrastructure
+    ├── api/Dockerfile         # API-only container
+    ├── frontend/Dockerfile    # Frontend-only container
+    ├── nginx/nginx.conf       # Single container nginx
+    ├── supervisor/supervisord.conf  # Process management
+    └── scripts/               # Container scripts
+```
+
+## Web Interface
+
+The project includes a complete frontend web application for easy code analysis:
+
+### Features
+- **File Upload**: Drag-and-drop interface for files and zip archives
+- **Real-time Analysis**: Live progress tracking with detailed status updates
+- **Markdown Preview**: In-browser rendering of analysis results
+- **Download Reports**: Save analysis as markdown files
+- **Dark Mode**: Toggle between light and dark themes
+- **Responsive Design**: Works on desktop and mobile devices
+
+### Starting the Web Interface
+
+#### Option 1: Separate API and Frontend
+```bash
+# Terminal 1: Start API server
+make run-api
+
+# Terminal 2: Start frontend (navigate to frontend/ directory)
+cd frontend
+./start.sh
+# OR
+python3 -m http.server 8080
+```
+
+#### Option 2: Docker Deployment
+```bash
+# Single container (API + Frontend)
+make docker-single-build
+
+# Multi-container (separate API and Frontend)
+make docker-multi-build
+```
+
+### Access Points
+- **Frontend**: `http://localhost:8080` (development) or `http://localhost` (Docker)
+- **API Documentation**: `http://localhost:8000/docs`
+- **API Health**: `http://localhost:8000/api/health`
+
+## Docker Deployment
+
+The project supports two Docker deployment strategies:
+
+### Single Container (Development/Simple)
+```bash
+# Build and start single container (API + Frontend)
+make docker-single-build
+
+# Access at:
+# Frontend: http://localhost
+# API: http://localhost/api (proxied) or http://localhost:8000 (direct)
+```
+
+### Multi-Container (Production/Scalable)
+```bash
+# Build and start separate API and Frontend containers
+make docker-multi-build
+
+# Access at:
+# Frontend: http://localhost
+# API: http://localhost:8000 (direct) or http://localhost/api (proxied)
+```
+
+### Docker Management
+```bash
+# Show Docker help
+make docker-help
+
+# Stop all containers
+make docker-down
+
+# View container logs
+make docker-logs
+
+# Check container health
+make docker-health
+
+# Clean up Docker resources
+make docker-clean
 ```
 
 ## Troubleshooting
@@ -485,7 +626,7 @@ Error: OPENAI_API_KEY environment variable is required
 **No Supported Files Found**:
 ```bash
 No supported code files found in input
-```  
+```
 - Check that your input contains files with supported extensions
 - Verify the zip file extracts properly
 
@@ -497,11 +638,20 @@ No supported code files found in input
 - Usually indicates LLM response formatting issues
 - Try reducing `temperature` in config for more consistent output
 
+**Frontend Connection Issues**:
+- Verify API server is running: `curl http://127.0.0.1:8000/api/health`
+- Check CORS settings if accessing from different ports
+- For Docker: ensure containers are healthy with `make docker-health`
+
 ### Debug Mode
 
 Enable verbose output to see detailed processing information:
 ```bash
+# CLI
 uv run code-summarizer analyze myfile.py --verbose
+
+# API
+# Use verbose=true in web interface or API requests
 ```
 
 ## Contributing
