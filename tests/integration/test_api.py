@@ -29,11 +29,15 @@ def sample_python_file():
 def sample_zip_file():
     """Create a sample ZIP file for testing."""
     with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as zip_f:
-        with zipfile.ZipFile(zip_f.name, 'w') as zf:
-            zf.writestr('test.py', "print('hello from zip')")
-            zf.writestr('utils.py', "def helper(): return True")
-        yield zip_f.name
-    os.unlink(zip_f.name)
+        zip_file_path = zip_f.name
+
+    # Create the zip file separately to ensure it's properly closed
+    with zipfile.ZipFile(zip_file_path, 'w') as zf:
+        zf.writestr('test.py', "print('hello from zip')")
+        zf.writestr('utils.py', "def helper(): return True")
+
+    yield zip_file_path
+    os.unlink(zip_file_path)
 
 
 class TestHealthEndpoints:
@@ -260,7 +264,9 @@ class TestAnalysisEndpoints:
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     @patch("app.services.llm_client.OpenAI")
     @patch("app.utils.prompt_loader.PromptLoader")
-    def test_analyze_zip_upload(self, mock_prompt_loader, mock_openai, client, sample_zip_file):
+    @patch("tiktoken.encoding_for_model")
+    @patch("zipfile.ZipFile")
+    def test_analyze_zip_upload(self, mock_zipfile, mock_tiktoken, mock_prompt_loader, mock_openai, client, sample_zip_file):
         """Test ZIP file upload analysis."""
         # Mock LLM response
         mock_client = mock_openai.return_value
@@ -271,8 +277,50 @@ class TestAnalysisEndpoints:
         # Mock prompt loader
         mock_prompt_loader.return_value.batch_analysis_prompt = "Analyze: {files_info}"
 
-        # Mock config files
-        with patch("builtins.open", mock_open(read_data="llm:\n  model: gpt-4")):
+        # Mock tiktoken tokenizer
+        mock_encoder = MagicMock()
+        mock_encoder.encode.return_value = [1, 2, 3, 4, 5]  # Mock token list
+        mock_tiktoken.return_value = mock_encoder
+
+        # Mock zipfile to return some file entries
+        mock_zip_instance = MagicMock()
+        mock_zip_instance.namelist.return_value = ['test.py', 'utils.py']
+
+        # Mock file info for size checks
+        mock_file_info = MagicMock()
+        mock_file_info.file_size = 100  # Small file size
+        mock_zip_instance.getinfo.return_value = mock_file_info
+
+        # Mock the file extraction mechanism
+        def mock_open_file(file_path):
+            mock_file_obj = MagicMock()
+            content_map = {
+                'test.py': "print('hello from zip')".encode('utf-8'),
+                'utils.py': "def helper(): return True".encode('utf-8')
+            }
+            mock_file_obj.read.return_value = content_map[file_path]
+            # Make it work as a context manager
+            mock_file_obj.__enter__.return_value = mock_file_obj
+            mock_file_obj.__exit__.return_value = None
+            return mock_file_obj
+
+        mock_zip_instance.open.side_effect = mock_open_file
+        mock_zipfile.return_value.__enter__.return_value = mock_zip_instance
+
+        # Mock config files with proper file processing config
+        config_data = """
+llm:
+  model: gpt-4
+file_processing:
+  supported_extensions:
+    - .py
+    - .js
+    - .ts
+  exclude_patterns:
+    - __pycache__
+    - .git
+"""
+        with patch("builtins.open", mock_open(read_data=config_data)):
             with open(sample_zip_file, 'rb') as f:
                 files = {"files": ("test.zip", f, "application/zip")}
                 response = client.post("/api/analyze/upload", files=files)
