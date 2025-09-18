@@ -259,7 +259,7 @@ class AnalysisService:
         return self.settings.allowed_file_types
 
     async def _analyze_batches(
-        self, batches: list, analysis_id: str, verbose: bool
+        self, batches: list[Any], analysis_id: str, verbose: bool
     ) -> tuple[list[BatchAnalysisResult], int]:
         """Analyze batches and return results with total tokens."""
         if verbose:
@@ -310,7 +310,10 @@ class AnalysisService:
         return batch_results, total_tokens
 
     async def _generate_project_summary(
-        self, files_data: list, batch_results: list[BatchAnalysisResult], verbose: bool
+        self,
+        files_data: list[Any],
+        batch_results: list[BatchAnalysisResult],
+        verbose: bool,
     ) -> ProjectSummary | None:
         """Generate project summary if multiple files."""
         if len(files_data) <= 1:
@@ -337,8 +340,8 @@ class AnalysisService:
     async def _generate_markdown_output(
         self,
         output_format: str,
-        files_data: list,
-        batches: list,
+        files_data: list[Any],
+        batches: list[Any],
         batch_results: list[BatchAnalysisResult],
         verbose: bool,
     ) -> str | None:
@@ -356,7 +359,9 @@ class AnalysisService:
                 full_result = self.llm_client.analyze_batch(batch)
                 legacy_analysis_results.append(full_result)
 
-            return self.markdown_formatter.format_results(files_data, legacy_analysis_results)
+            return self.markdown_formatter.format_results(
+                files_data, legacy_analysis_results
+            )
         except Exception as e:
             if verbose:
                 print(f"Markdown generation failed: {str(e)}")

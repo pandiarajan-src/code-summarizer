@@ -179,7 +179,7 @@ class TestMarkdownFormatter:
         assert "**Lines**: 100" in md
         assert "**`main`** (function) (line 50): Application entry point" in md
         assert "**`setup_logging`** (function): Configure application logging" in md
-        assert "**Dependencies**: os, sys, logging" in md
+        assert "**Imports**: os, sys, logging" in md
         assert "- Command line interface" in md
         assert "⚠️ **Potential Issues**:" in md
         assert "- Hard-coded configuration" in md
