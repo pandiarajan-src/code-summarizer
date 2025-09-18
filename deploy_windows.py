@@ -8,7 +8,6 @@ import os
 import sys
 import subprocess
 import time
-import signal
 import socket
 import webbrowser
 from pathlib import Path
@@ -140,14 +139,17 @@ def install_dependencies():
         print("Generating requirements.txt...")
         try:
             subprocess.run([sys.executable, '-m', 'pip', 'install', 'toml'], capture_output=True)
-            import toml
-            with open('pyproject.toml', 'r') as f:
-                data = toml.load(f)
-                deps = data.get('project', {}).get('dependencies', [])
-                with open('requirements.txt', 'w') as req:
-                    req.write('\n'.join(deps))
-        except:
-            print_colored("Could not generate requirements.txt", Colors.YELLOW)
+            try:
+                import toml
+                with open('pyproject.toml', 'r') as f:
+                    data = toml.load(f)
+                    deps = data.get('project', {}).get('dependencies', [])
+                    with open('requirements.txt', 'w') as req:
+                        req.write('\n'.join(deps))
+            except ImportError:
+                print_colored("Could not import toml module", Colors.YELLOW)
+        except Exception as e:
+            print_colored(f"Could not generate requirements.txt: {e}", Colors.YELLOW)
 
     if requirements_path.exists():
         print("Using pip to install dependencies...")
@@ -198,7 +200,7 @@ def start_api_server():
 
     # Wait for API to start
     print("Waiting for API to start...")
-    for i in range(10):
+    for _ in range(10):
         time.sleep(1)
         if not check_port(8000):
             # Try to check health endpoint
@@ -208,7 +210,7 @@ def start_api_server():
                 if response.status == 200:
                     print_colored("✓ API server is running on http://localhost:8000", Colors.GREEN)
                     return api_process
-            except:
+            except Exception:
                 pass
 
     print_colored("⚠️  API may not have started properly. Check for errors.", Colors.YELLOW)
@@ -268,8 +270,8 @@ def main():
         sys.exit(1)
 
     # Start servers
-    api_process = start_api_server()
-    frontend_process = start_frontend_server()
+    start_api_server()
+    start_frontend_server()
 
     # Print success message
     print_colored("\n" + "="*50, Colors.GREEN)

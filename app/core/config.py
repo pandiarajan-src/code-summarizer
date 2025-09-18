@@ -1,5 +1,7 @@
 """Core configuration management for FastAPI application."""
 
+import os
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field
@@ -8,14 +10,39 @@ from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 
 
+def find_env_file() -> str | None:
+    """Find .env file in current directory or parent directories."""
+    current_dir = Path.cwd()
+
+    # Check current directory and up to 3 parent directories
+    for _ in range(4):
+        env_file = current_dir / ".env"
+        if env_file.exists():
+            print(f"Found .env file at: {env_file}")
+            return str(env_file)
+        current_dir = current_dir.parent
+
+    # Also check if we're in the app directory, look in parent
+    if Path.cwd().name == "app":
+        parent_env = Path.cwd().parent / ".env"
+        if parent_env.exists():
+            print(f"Found .env file at: {parent_env}")
+            return str(parent_env)
+
+    print("Warning: .env file not found")
+    return None
+
+
 class Settings(BaseSettings):
     """Application configuration settings."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=find_env_file(),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",  # Ignore extra fields to avoid validation errors
+        # Explicit environment variable mapping
+        env_prefix="",  # No prefix, use exact names
     )
 
     # API Configuration
@@ -71,9 +98,21 @@ class Settings(BaseSettings):
     )
 
     # LLM Configuration
-    openai_api_key: str | None = Field(default=None)
-    openai_base_url: str | None = Field(default=None)
-    llm_model: str = Field(default="gpt-4o")
+    openai_api_key: str = Field(
+        ...,  # Required field
+        alias="OPENAI_API_KEY",
+        description="OpenAI API key for LLM access"
+    )
+    openai_base_url: str | None = Field(
+        default=None,
+        alias="OPENAI_BASE_URL",
+        description="Optional custom OpenAI base URL"
+    )
+    llm_model: str = Field(
+        default="gpt-4o",
+        alias="MODEL_NAME",
+        description="LLM model to use"
+    )
     llm_max_tokens: int = Field(default=4000)
     llm_temperature: float = Field(default=0.1)
     llm_max_context_tokens: int = Field(default=128000)
@@ -124,6 +163,31 @@ class Settings(BaseSettings):
     enable_batch_processing: bool = Field(default=True)
     max_batch_size: int = Field(default=10)
     enable_markdown_output: bool = Field(default=True)
+
+    @field_validator("openai_api_key")
+    @classmethod
+    def validate_openai_api_key(cls, v: str) -> str:
+        """Validate OpenAI API key is present and properly formatted."""
+        if not v:
+            raise ValueError(
+                "OPENAI_API_KEY environment variable is required. "
+                "Please set it in your .env file or environment."
+            )
+
+        # Basic format validation for OpenAI API keys
+        if not v.startswith(("sk-", "xai-")):
+            raise ValueError(
+                "OPENAI_API_KEY appears to be invalid. "
+                "OpenAI API keys should start with 'sk-' or 'xai-'"
+            )
+
+        if len(v) < 20:
+            raise ValueError(
+                "OPENAI_API_KEY appears to be too short. "
+                "Please check your API key."
+            )
+
+        return v
 
     @field_validator("max_file_size_mb")
     @classmethod
@@ -176,6 +240,85 @@ class Settings(BaseSettings):
             },
         }
 
+    def debug_info(self) -> dict[str, Any]:
+        """Get debug information about configuration loading."""
+        env_file_path = find_env_file()
+
+        debug_data = {
+            "current_working_directory": str(Path.cwd()),
+            "env_file_found": env_file_path,
+            "env_file_exists": Path(env_file_path).exists() if env_file_path else False,
+            "environment_variables": {
+                "OPENAI_API_KEY": "***SET***" if os.getenv("OPENAI_API_KEY") else "NOT_SET",
+                "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "NOT_SET"),
+                "MODEL_NAME": os.getenv("MODEL_NAME", "NOT_SET"),
+                "PYTHONPATH": os.getenv("PYTHONPATH", "NOT_SET"),
+            },
+            "configuration_values": {
+                "api_key_configured": "***SET***" if self.openai_api_key else "NOT_SET",
+                "base_url_configured": self.openai_base_url or "NOT_SET",
+                "model_configured": self.llm_model,
+                "debug_mode": self.debug,
+            }
+        }
+
+        if env_file_path:
+            try:
+                with open(env_file_path, 'r') as f:
+                    content = f.read()
+                    debug_data["env_file_has_api_key"] = "OPENAI_API_KEY=" in content
+                    debug_data["env_file_size"] = len(content)
+            except Exception as e:
+                debug_data["env_file_error"] = str(e)
+
+        return debug_data
+
 
 # Global settings instance
-settings = Settings()
+def create_settings() -> Settings:
+    """Create settings instance with proper error handling."""
+    try:
+        print("Loading application settings...")
+        settings_instance = Settings()
+        print("✅ Settings loaded successfully")
+        return settings_instance
+    except Exception as e:
+        print(f"❌ Failed to load settings: {e}")
+        print("\n🔍 Debug Information:")
+
+        # Print debug info even if settings failed to load
+        env_file_path = find_env_file()
+        debug_info = {
+            "current_working_directory": str(Path.cwd()),
+            "env_file_found": env_file_path,
+            "env_file_exists": Path(env_file_path).exists() if env_file_path else False,
+            "environment_variables": {
+                "OPENAI_API_KEY": "***SET***" if os.getenv("OPENAI_API_KEY") else "NOT_SET",
+                "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "NOT_SET"),
+                "MODEL_NAME": os.getenv("MODEL_NAME", "NOT_SET"),
+                "PYTHONPATH": os.getenv("PYTHONPATH", "NOT_SET"),
+            }
+        }
+
+        if env_file_path:
+            try:
+                with open(env_file_path, 'r') as f:
+                    content = f.read()
+                    debug_info["env_file_has_api_key"] = "OPENAI_API_KEY=" in content
+                    debug_info["env_file_content_preview"] = content[:200] + "..." if len(content) > 200 else content
+            except Exception as file_err:
+                debug_info["env_file_error"] = str(file_err)
+
+        import json
+        print(json.dumps(debug_info, indent=2))
+
+        print(f"\n📋 Common solutions:")
+        print(f"1. Ensure .env file exists in project root")
+        print(f"2. Check OPENAI_API_KEY is set in .env file")
+        print(f"3. Restart API server after changing .env")
+        print(f"4. Set PYTHONPATH=app before starting server")
+
+        raise
+
+
+settings = create_settings()
