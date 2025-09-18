@@ -1,13 +1,19 @@
 // Code Summarizer Frontend Application
+
 class CodeSummarizerApp {
     constructor() {
-        this.apiConfig = window.API_CONFIG;
-        this.selectedFiles = [];
-        this.analysisResult = null;
+        try {
+            this.apiConfig = window.API_CONFIG;
+            this.selectedFiles = [];
+            this.analysisResult = null;
 
-        this.initializeElements();
-        this.bindEvents();
-        this.initializeApp();
+            this.initializeElements();
+            this.bindEvents();
+            this.initializeApp();
+        } catch (error) {
+            console.error('Error in CodeSummarizerApp constructor:', error);
+            throw error;
+        }
     }
 
     initializeElements() {
@@ -15,8 +21,11 @@ class CodeSummarizerApp {
         this.fileInput = document.getElementById('fileInput');
         this.fileInfo = document.getElementById('fileInfo');
         this.analyzeBtn = document.getElementById('analyzeBtn');
-        this.btnText = this.analyzeBtn.querySelector('.btn-text');
-        this.btnLoader = this.analyzeBtn.querySelector('.btn-loader');
+
+        if (this.analyzeBtn) {
+            this.btnText = this.analyzeBtn.querySelector('.btn-text');
+            this.btnLoader = this.analyzeBtn.querySelector('.btn-loader');
+        }
 
         // Options
         this.extractArchives = document.getElementById('extractArchives');
@@ -39,6 +48,9 @@ class CodeSummarizerApp {
         this.supportedLangsModal = document.getElementById('supportedLangsModal');
         this.supportedLangsList = document.getElementById('supportedLangsList');
         this.closeModal = document.getElementById('closeModal');
+
+        // Theme toggle
+        this.darkModeToggle = document.getElementById('darkModeToggle');
 
         // API version
         this.apiVersion = document.getElementById('apiVersion');
@@ -65,6 +77,13 @@ class CodeSummarizerApp {
             }
         });
 
+        // Theme toggle events
+        if (this.darkModeToggle) {
+            this.darkModeToggle.addEventListener('change', () => {
+                this.toggleTheme();
+            });
+        }
+
         // Keyboard events
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -75,6 +94,9 @@ class CodeSummarizerApp {
 
     async initializeApp() {
         try {
+            // Initialize theme
+            this.initializeTheme();
+
             await this.checkApiHealth();
             this.loadApiVersion();
         } catch (error) {
@@ -555,6 +577,67 @@ class CodeSummarizerApp {
             }, 300);
         });
     }
+
+    // Theme Management Methods
+    initializeTheme() {
+        try {
+            // Check for saved theme preference, default to dark mode
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+
+            // Set the initial theme
+            this.setTheme(savedTheme);
+
+            // Update toggle state if element exists
+            if (this.darkModeToggle) {
+                this.darkModeToggle.checked = savedTheme === 'dark';
+            }
+        } catch (error) {
+            console.error('Error initializing theme:', error);
+        }
+    }
+
+    toggleTheme() {
+        try {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            this.setTheme(newTheme);
+
+            // Save preference
+            localStorage.setItem('theme', newTheme);
+
+            // Update toggle state
+            if (this.darkModeToggle) {
+                this.darkModeToggle.checked = newTheme === 'dark';
+            }
+        } catch (error) {
+            console.error('Error toggling theme:', error);
+        }
+    }
+
+    setTheme(theme) {
+        try {
+            // Always remove first, then set if dark
+            document.documentElement.removeAttribute('data-theme');
+
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+
+            // Force a style recalculation
+            document.documentElement.offsetHeight;
+
+            // Add smooth transition class temporarily
+            document.documentElement.style.transition = 'color 0.3s ease, background-color 0.3s ease';
+
+            // Remove transition after animation completes
+            setTimeout(() => {
+                document.documentElement.style.transition = '';
+            }, 300);
+        } catch (error) {
+            console.error('Error in setTheme:', error);
+        }
+    }
 }
 
 // Add styles for notification system and language modal
@@ -596,7 +679,25 @@ const additionalStyles = `
 // Add the additional styles to the document
 document.head.insertAdjacentHTML('beforeend', additionalStyles);
 
-// Initialize the application when the DOM is ready
+// Single initialization with proper singleton pattern
+function initializeApp() {
+    if (window.codeSummarizerApp) {
+        return;
+    }
+
+    try {
+        window.codeSummarizerApp = new CodeSummarizerApp();
+    } catch (error) {
+        console.error('Failed to create CodeSummarizerApp:', error);
+    }
+}
+
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    new CodeSummarizerApp();
+    initializeApp();
+});
+
+// Fallback: initialize after window loads if not already done
+window.addEventListener('load', () => {
+    initializeApp();
 });
