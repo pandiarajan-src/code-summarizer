@@ -1,0 +1,46 @@
+# Ensure shell scripts always have Unix line endings (LF) regardless of platform
+*.sh text eol=lf
+entrypoint.sh text eol=lf
+**/entrypoint.sh text eol=lf
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+
+# Python files should also use Unix line endings
+*.py text eol=lf
+
+# YAML and config files
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+
+# Web files
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+
+# Documentation
+*.md text eol=lf
+LICENSE text eol=lf
+README text eol=lf
+
+# Configuration files for various tools
+.env* text eol=lf
+.gitignore text eol=lf
+.dockerignore text eol=lf
+Makefile text eol=lf
+
+# Binary files (don't modify)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
