@@ -167,27 +167,28 @@ class Settings(BaseSettings):
     @field_validator("openai_api_key")
     @classmethod
     def validate_openai_api_key(cls, v: str) -> str:
-        """Validate OpenAI API key is present and properly formatted."""
+        """Validate OpenAI API key is present."""
         if not v:
             raise ValueError(
                 "OPENAI_API_KEY environment variable is required. "
                 "Please set it in your .env file or environment."
             )
 
-        # Basic format validation for OpenAI API keys
-        if not v.startswith(("sk-", "xai-")):
+        # Remove overly strict validation - support Azure, custom deployments, etc.
+        # Just check that it's not obviously a placeholder
+        if v.lower() in ["your_api_key_here", "your-api-key", "placeholder", "sk-", "test"]:
             raise ValueError(
-                "OPENAI_API_KEY appears to be invalid. "
-                "OpenAI API keys should start with 'sk-' or 'xai-'"
+                "OPENAI_API_KEY appears to be a placeholder value. "
+                "Please set your actual API key."
             )
 
-        if len(v) < 20:
+        if len(v.strip()) < 5:
             raise ValueError(
                 "OPENAI_API_KEY appears to be too short. "
                 "Please check your API key."
             )
 
-        return v
+        return v.strip()
 
     @field_validator("max_file_size_mb")
     @classmethod
