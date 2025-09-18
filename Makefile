@@ -271,7 +271,8 @@ docker-single: docker-env ## Start single container (API + Frontend)
 
 docker-single-build: docker-env ## Build and start single container
 	@echo "$(BLUE)Building and starting single container...$(RESET)"
-	docker-compose -f docker-compose.single.yml up -d --build
+	docker-compose -f docker-compose.single.yml build --no-cache --pull
+	docker-compose -f docker-compose.single.yml up -d
 	@echo "$(GREEN)Single container built and started!$(RESET)"
 
 docker-multi: docker-env ## Start multi-container setup
@@ -283,7 +284,8 @@ docker-multi: docker-env ## Start multi-container setup
 
 docker-multi-build: docker-env ## Build and start multi-container setup
 	@echo "$(BLUE)Building and starting multi-container setup...$(RESET)"
-	docker-compose -f docker-compose.multi.yml up -d --build
+	docker-compose -f docker-compose.multi.yml build --no-cache --pull
+	docker-compose -f docker-compose.multi.yml up -d
 	@echo "$(GREEN)Multi-container setup built and started!$(RESET)"
 
 docker-down: ## Stop all Docker containers

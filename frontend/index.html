@@ -5,15 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Code Summarizer</title>
     <link rel="stylesheet" href="css/styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js" onerror="console.warn('Failed to load marked.js from CDN')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" onerror="console.warn('Failed to load DOMPurify from CDN')"></script>
 </head>
 <body>
     <!-- Banner Section -->
     <header class="banner">
         <div class="banner-content">
             <h1 class="banner-title">Code Summarizer</h1>
-            <div class="api-version" id="apiVersion">Loading...</div>
+            <div class="banner-controls">
+                <div class="theme-toggle-container">
+                    <label class="theme-toggle" for="darkModeToggle">
+                        <input type="checkbox" id="darkModeToggle" checked>
+                        <span class="theme-slider">
+                            <span class="theme-icon theme-icon-light">☀️</span>
+                            <span class="theme-icon theme-icon-dark">🌙</span>
+                        </span>
+                    </label>
+                </div>
+                <div class="api-version" id="apiVersion">Loading...</div>
+            </div>
         </div>
     </header>
 
@@ -163,6 +174,19 @@
         };
     </script>
 
-    <script src="js/app.js"></script>
+    <script>
+        // Ensure app starts even if CDN dependencies fail
+        window.addEventListener('load', function() {
+            console.log('Page loaded, checking dependencies...');
+            console.log('marked available:', typeof marked !== 'undefined');
+            console.log('DOMPurify available:', typeof DOMPurify !== 'undefined');
+
+            // Add debug info
+            console.log('Location:', window.location.href);
+            console.log('User agent:', navigator.userAgent);
+            console.log('DOM ready state:', document.readyState);
+        });
+    </script>
+    <script src="js/app.js" onload="console.log('app.js loaded successfully')" onerror="console.error('Failed to load app.js')"></script>
 </body>
 </html>
