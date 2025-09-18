@@ -1,6 +1,7 @@
 """Analysis service wrapper for integrating existing core modules with FastAPI."""
 
 # Import existing core modules
+import os
 import time
 import uuid
 from pathlib import Path
@@ -36,8 +37,11 @@ class AnalysisService:
     def _initialize_components(self) -> None:
         """Initialize the core analysis components."""
         try:
+            # Set environment variables from Pydantic settings for legacy modules
+            self._set_environment_variables()
+
             # Create a legacy config dict for existing modules
-            _ = self.settings.to_legacy_config()
+            legacy_config = self.settings.to_legacy_config()
 
             # Initialize components with config
             self.file_processor = FileProcessor(
@@ -54,11 +58,39 @@ class AnalysisService:
                 config_path=self.settings.config_file_path
             )
 
+            print(f"✅ Analysis components initialized successfully")
+            print(f"   API key configured: {'***SET***' if self.settings.openai_api_key else 'NOT_SET'}")
+            print(f"   Model: {self.settings.llm_model}")
+
         except Exception as e:
+            print(f"❌ Failed to initialize analysis components: {str(e)}")
             raise ConfigurationError(
                 f"Failed to initialize analysis components: {str(e)}",
                 details={"component_error": str(e)},
             )
+
+    def _set_environment_variables(self) -> None:
+        """Set environment variables from Pydantic settings for legacy modules."""
+        print("🔧 Setting environment variables for legacy modules...")
+
+        # Set OpenAI API key
+        if self.settings.openai_api_key:
+            os.environ["OPENAI_API_KEY"] = self.settings.openai_api_key
+            print("   ✅ OPENAI_API_KEY set from Pydantic settings")
+        else:
+            print("   ❌ OPENAI_API_KEY not available in Pydantic settings")
+
+        # Set OpenAI base URL if provided
+        if self.settings.openai_base_url:
+            os.environ["OPENAI_BASE_URL"] = self.settings.openai_base_url
+            print(f"   ✅ OPENAI_BASE_URL set to: {self.settings.openai_base_url}")
+
+        # Set model name
+        if self.settings.llm_model:
+            os.environ["MODEL_NAME"] = self.settings.llm_model
+            print(f"   ✅ MODEL_NAME set to: {self.settings.llm_model}")
+
+        print("   Environment variables configured for legacy modules")
 
     async def analyze_files(
         self,

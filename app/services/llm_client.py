@@ -47,10 +47,26 @@ class LLMClient:
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is required")
+        print(f"🔧 Initializing LLM client...")
+        print(f"   API key available: {'***SET***' if api_key else 'NOT_SET'}")
+        print(f"   Base URL: {base_url}")
 
-        return OpenAI(api_key=api_key, base_url=base_url)
+        if not api_key:
+            error_msg = (
+                "OPENAI_API_KEY environment variable is required. "
+                "This should be set by the AnalysisService from Pydantic settings."
+            )
+            print(f"   ❌ {error_msg}")
+            raise ValueError(error_msg)
+
+        try:
+            client = OpenAI(api_key=api_key, base_url=base_url)
+            print(f"   ✅ OpenAI client initialized successfully")
+            return client
+        except Exception as e:
+            error_msg = f"Failed to initialize OpenAI client: {str(e)}"
+            print(f"   ❌ {error_msg}")
+            raise ValueError(error_msg)
 
     def _make_api_call(self, prompt: str) -> str:
         """Make API call to LLM and return response."""
