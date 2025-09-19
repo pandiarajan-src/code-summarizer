@@ -42,6 +42,30 @@ This is the easiest method that runs both API and Frontend without Docker.
    - API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
 
+### **External Access (From Other Machines)**
+
+To access from other machines on your network:
+
+1. **Configure Windows Firewall** (Run as Administrator):
+   ```cmd
+   setup_firewall.bat
+   ```
+
+2. **Find your machine's IP address**:
+   ```cmd
+   ipconfig
+   ```
+   Look for "IPv4 Address" under your network adapter.
+
+3. **Access from other machines**:
+   - Frontend: http://YOUR_IP_ADDRESS:8080
+   - API: http://YOUR_IP_ADDRESS:8000
+
+4. **Test external access**:
+   ```cmd
+   python test_external_access.py
+   ```
+
 ### Method B: Using Python Script
 
 1. **Run the Python deployment script:**
