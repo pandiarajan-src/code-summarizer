@@ -69,7 +69,7 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8080"') do (
 REM Start the API server in a new window
 echo.
 echo Starting API server on port 8000...
-start "Code Summarizer API" cmd /k "set PYTHONPATH=app&& uv run uvicorn app.api_main:app --host 127.0.0.1 --port 8000 --reload"
+start "Code Summarizer API" cmd /k "set PYTHONPATH=app&& uv run uvicorn app.api_main:app --host 0.0.0.0 --port 8000 --reload"
 
 REM Wait for API to start
 echo Waiting for API to start...

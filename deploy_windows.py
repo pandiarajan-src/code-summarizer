@@ -185,16 +185,16 @@ def start_api_server():
     env = os.environ.copy()
     env['PYTHONPATH'] = 'app'
 
-    # Start API server
+    # Start API server (bind to 0.0.0.0 to allow external access)
     if platform.system() == "Windows":
         api_process = subprocess.Popen(
-            'start "Code Summarizer API" cmd /k "set PYTHONPATH=app&& python -m uvicorn app.api_main:app --host 127.0.0.1 --port 8000 --reload"',
+            'start "Code Summarizer API" cmd /k "set PYTHONPATH=app&& python -m uvicorn app.api_main:app --host 0.0.0.0 --port 8000 --reload"',
             shell=True,
             env=env
         )
     else:
         api_process = subprocess.Popen(
-            [sys.executable, '-m', 'uvicorn', 'app.api_main:app', '--host', '127.0.0.1', '--port', '8000', '--reload'],
+            [sys.executable, '-m', 'uvicorn', 'app.api_main:app', '--host', '0.0.0.0', '--port', '8000', '--reload'],
             env=env
         )
 

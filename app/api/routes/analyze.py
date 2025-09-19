@@ -73,6 +73,14 @@ async def analyze_uploaded_files(
     analysis_service, file_handler = dependencies
 
     try:
+        # Debug logging
+        print(f"🔍 Upload analysis request:")
+        print(f"   Files count: {len(files)}")
+        print(f"   Config overrides type: {type(config_overrides)}")
+        print(f"   Config overrides value: {repr(config_overrides)}")
+        print(f"   Output format: {output_format}")
+        print(f"   Verbose: {verbose}")
+        print(f"   Extract archives: {extract_archives}")
         # Process uploaded files
         file_contents = await file_handler.process_uploaded_files(
             files=files, extract_archives=extract_archives
@@ -80,7 +88,7 @@ async def analyze_uploaded_files(
 
         # Parse config overrides if provided
         parsed_config_overrides = None
-        if config_overrides:
+        if config_overrides and config_overrides.strip():
             import json
 
             try:
@@ -219,7 +227,7 @@ async def analyze_batch_uploaded_files(
 
         # Parse config overrides if provided
         parsed_config_overrides = None
-        if config_overrides:
+        if config_overrides and config_overrides.strip():
             import json
 
             try:
