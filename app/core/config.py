@@ -1,5 +1,6 @@
 """Core configuration management for FastAPI application."""
 
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,8 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 def find_env_file() -> str | None:
@@ -18,7 +21,7 @@ def find_env_file() -> str | None:
     for _ in range(4):
         env_file = current_dir / ".env"
         if env_file.exists():
-            print(f"Found .env file at: {env_file}")
+            logger.debug(f"Found .env file at: {env_file}")
             return str(env_file)
         current_dir = current_dir.parent
 
@@ -26,10 +29,10 @@ def find_env_file() -> str | None:
     if Path.cwd().name == "app":
         parent_env = Path.cwd().parent / ".env"
         if parent_env.exists():
-            print(f"Found .env file at: {parent_env}")
+            logger.debug(f"Found .env file at: {parent_env}")
             return str(parent_env)
 
-    print("Warning: .env file not found")
+    logger.warning(".env file not found")
     return None
 
 
@@ -51,7 +54,7 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False)
 
     # Server Configuration
-    host: str = Field(default="0.0.0.0")
+    host: str = Field(default="127.0.0.1")  # Changed from 0.0.0.0 for security
     port: int = Field(default=8000)
     reload: bool = Field(default=False)
 
@@ -279,15 +282,14 @@ class Settings(BaseSettings):
 def create_settings() -> Settings:
     """Create settings instance with proper error handling."""
     try:
-        print("Loading application settings...")
+        logger.debug("Loading application settings...")
         settings_instance = Settings()
-        print("✅ Settings loaded successfully")
+        logger.info("Settings loaded successfully")
         return settings_instance
     except Exception as e:
-        print(f"❌ Failed to load settings: {e}")
-        print("\n🔍 Debug Information:")
+        logger.error(f"Failed to load settings: {e}")
 
-        # Print debug info even if settings failed to load
+        # Log debug info if settings failed to load
         env_file_path = find_env_file()
         debug_info = {
             "current_working_directory": str(Path.cwd()),
@@ -306,18 +308,17 @@ def create_settings() -> Settings:
                 with open(env_file_path, 'r') as f:
                     content = f.read()
                     debug_info["env_file_has_api_key"] = "OPENAI_API_KEY=" in content
-                    debug_info["env_file_content_preview"] = content[:200] + "..." if len(content) > 200 else content
             except Exception as file_err:
                 debug_info["env_file_error"] = str(file_err)
 
         import json
-        print(json.dumps(debug_info, indent=2))
+        logger.debug(f"Debug info: {json.dumps(debug_info, indent=2)}")
 
-        print(f"\n📋 Common solutions:")
-        print(f"1. Ensure .env file exists in project root")
-        print(f"2. Check OPENAI_API_KEY is set in .env file")
-        print(f"3. Restart API server after changing .env")
-        print(f"4. Set PYTHONPATH=app before starting server")
+        logger.error("Common solutions:")
+        logger.error("1. Ensure .env file exists in project root")
+        logger.error("2. Check OPENAI_API_KEY is set in .env file")
+        logger.error("3. Restart API server after changing .env")
+        logger.error("4. Set PYTHONPATH=app before starting server")
 
         raise
 

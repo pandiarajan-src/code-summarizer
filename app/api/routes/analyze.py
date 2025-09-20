@@ -1,5 +1,6 @@
 """Analysis endpoints for the FastAPI application."""
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter
@@ -25,6 +26,7 @@ from ...services.analysis_service import AnalysisService
 from ...utils.file_handler import FileHandler
 from ..deps import get_analysis_dependencies
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Analysis"])
 
 
@@ -73,14 +75,12 @@ async def analyze_uploaded_files(
     analysis_service, file_handler = dependencies
 
     try:
-        # Debug logging
-        print(f"🔍 Upload analysis request:")
-        print(f"   Files count: {len(files)}")
-        print(f"   Config overrides type: {type(config_overrides)}")
-        print(f"   Config overrides value: {repr(config_overrides)}")
-        print(f"   Output format: {output_format}")
-        print(f"   Verbose: {verbose}")
-        print(f"   Extract archives: {extract_archives}")
+        # Log request details at debug level
+        logger.debug(
+            f"Upload analysis request - Files: {len(files)}, "
+            f"Output format: {output_format}, Verbose: {verbose}, "
+            f"Extract archives: {extract_archives}"
+        )
         # Process uploaded files
         file_contents = await file_handler.process_uploaded_files(
             files=files, extract_archives=extract_archives
