@@ -85,8 +85,8 @@ def analyze(
             output = f"{input_name}_summary.md"
 
         # Write output
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(markdown_content)
+        output_path = Path(output)
+        output_path.write_text(markdown_content, encoding="utf-8")
 
         click.echo(f"Analysis complete! Summary saved to: {output}")
 

@@ -78,23 +78,25 @@ class FileProcessor:
         code_files = []
 
         for root, dirs, files in os.walk(directory):
+            root_path = Path(root)
+
             # Skip excluded directories
             dirs[:] = [
                 d
                 for d in dirs
                 if not any(
-                    pattern.replace("*", "") in os.path.join(root, d)
+                    pattern.replace("*", "") in str(root_path / d)
                     for pattern in self.exclude_patterns
                 )
             ]
 
             for file in files:
-                file_path = os.path.join(root, file)
+                file_path = root_path / file
 
                 if self._is_supported_file(file) and not self._should_exclude(
-                    file_path
+                    str(file_path)
                 ):
-                    code_files.append(file_path)
+                    code_files.append(str(file_path))
 
         return code_files
 
@@ -107,17 +109,19 @@ class FileProcessor:
         for file_path in file_paths:
             try:
                 content = self._read_file_content(file_path)
+                path_obj = Path(file_path)
 
                 # Calculate relative path if base_dir provided
                 relative_path = file_path
                 if base_dir:
-                    relative_path = os.path.relpath(file_path, base_dir)
+                    base_path = Path(base_dir)
+                    relative_path = str(path_obj.relative_to(base_path))
 
                 file_info = {
                     "path": relative_path,
                     "absolute_path": file_path,
-                    "name": os.path.basename(file_path),
-                    "extension": Path(file_path).suffix,
+                    "name": path_obj.name,
+                    "extension": path_obj.suffix,
                     "content": content,
                     "size": len(content),
                     "lines": len(content.splitlines()),
@@ -137,22 +141,22 @@ class FileProcessor:
         Returns:
             List of file data dictionaries.
         """
-        input_path = os.path.abspath(input_path)
+        path_obj = Path(input_path).resolve()
 
         # Handle single file
-        if os.path.isfile(input_path):
-            if input_path.lower().endswith(".zip"):
-                return self._process_zip_file(input_path)
-            if self._is_supported_file(input_path):
-                return self._create_file_data([input_path])
-            raise Exception(f"Unsupported file type: {Path(input_path).suffix}")
+        if path_obj.is_file():
+            if str(path_obj).lower().endswith(".zip"):
+                return self._process_zip_file(str(path_obj))
+            if self._is_supported_file(str(path_obj)):
+                return self._create_file_data([str(path_obj)])
+            raise Exception(f"Unsupported file type: {path_obj.suffix}")
 
         # Handle directory
-        if os.path.isdir(input_path):
-            code_files = self._scan_directory(input_path)
+        if path_obj.is_dir():
+            code_files = self._scan_directory(str(path_obj))
             if not code_files:
                 raise Exception("No supported code files found in directory")
-            return self._create_file_data(code_files, input_path)
+            return self._create_file_data(code_files, str(path_obj))
 
         raise Exception(f"Input path does not exist: {input_path}")
 
@@ -177,7 +181,7 @@ class FileProcessor:
 
         finally:
             # Cleanup temporary directory
-            if temp_dir and os.path.exists(temp_dir):
+            if temp_dir and Path(temp_dir).exists():
                 shutil.rmtree(temp_dir, ignore_errors=True)
 
     def get_project_info(self, files_data: list[dict[str, Any]]) -> dict[str, Any]:

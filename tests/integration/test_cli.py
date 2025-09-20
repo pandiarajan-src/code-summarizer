@@ -4,12 +4,14 @@ import os
 import tempfile
 import zipfile
 from pathlib import Path
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import MagicMock
+from unittest.mock import mock_open
+from unittest.mock import patch
 
 import pytest
+from app.main import analyze
+from app.main import cli
 from click.testing import CliRunner
-
-from app.main import cli, analyze
 
 
 class TestCLIIntegration:
@@ -65,7 +67,7 @@ class TestCLIIntegration:
 
         finally:
             # Cleanup
-            os.unlink(temp_file)
+            Path(temp_file).unlink()
 
     def test_analyze_nonexistent_file(self):
         """Test analysis of nonexistent file."""
@@ -86,7 +88,7 @@ class TestCLIIntegration:
             assert "Unsupported file type" in result.output or "Error" in result.output
 
         finally:
-            os.unlink(temp_file)
+            Path(temp_file).unlink()
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     @patch("app.services.llm_client.OpenAI")
@@ -158,9 +160,9 @@ class TestCLIIntegration:
 
         finally:
             # Cleanup
-            os.unlink(temp_file)
-            if os.path.exists(output_file):
-                os.unlink(output_file)
+            Path(temp_file).unlink()
+            if Path(output_file).exists():
+                Path(output_file).unlink()
 
     def test_analyze_without_api_key(self):
         """Test analysis without API key."""
@@ -178,7 +180,7 @@ class TestCLIIntegration:
             assert "OPENAI_API_KEY" in result.output or "API key" in result.output
 
         finally:
-            os.unlink(temp_file)
+            Path(temp_file).unlink()
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     def test_analyze_verbose_mode(self):
@@ -198,7 +200,7 @@ class TestCLIIntegration:
             assert "Loading configuration" in result.output or result.exit_code in [0, 1]
 
         finally:
-            os.unlink(temp_file)
+            Path(temp_file).unlink()
 
     @pytest.mark.skip(reason="Complex mocking conflicts between real ZIP creation and zipfile mocking - needs refactoring")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
@@ -208,8 +210,6 @@ class TestCLIIntegration:
     @patch("zipfile.ZipFile")
     def test_analyze_zip_file(self, mock_zipfile, mock_tiktoken, mock_prompt_loader, mock_openai):
         """Test analysis of ZIP file."""
-        import zipfile
-
         # Create a ZIP file with Python code
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as zip_f:
             with zipfile.ZipFile(zip_f.name, 'w') as zf:
@@ -248,8 +248,8 @@ class TestCLIIntegration:
             def mock_open_file(file_path):
                 mock_file_obj = MagicMock()
                 content_map = {
-                    'test.py': "print('hello from zip')".encode('utf-8'),
-                    'subdir/main.py': "def main(): pass".encode('utf-8')
+                    'test.py': b"print('hello from zip')",
+                    'subdir/main.py': b"def main(): pass"
                 }
                 mock_file_obj.read.return_value = content_map[file_path]
                 # Make it work as a context manager
@@ -286,7 +286,7 @@ file_processing:
             assert result.exit_code == 0
 
         finally:
-            os.unlink(zip_file)
+            Path(zip_file).unlink()
 
     def test_analyze_with_invalid_config(self):
         """Test analysis with invalid configuration file."""
@@ -304,4 +304,4 @@ file_processing:
             assert result.exit_code in [0, 1]  # May succeed with defaults or fail
 
         finally:
-            os.unlink(temp_file)
+            Path(temp_file).unlink()

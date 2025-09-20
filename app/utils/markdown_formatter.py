@@ -85,10 +85,11 @@ class MarkdownFormatter:
         # Determine project name (from first file or directory)
         if files_data:
             first_file = files_data[0]
-            if "/" in first_file["path"]:
-                project_name = first_file["path"].split("/")[0]
+            file_path = Path(first_file["path"])
+            if len(file_path.parts) > 1:
+                project_name = file_path.parts[0]
             else:
-                project_name = first_file["name"].split(".")[0]
+                project_name = file_path.stem
         else:
             project_name = "Code Analysis"
 

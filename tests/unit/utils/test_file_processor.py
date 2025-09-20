@@ -1,9 +1,10 @@
-import os
-import pytest
 import tempfile
 import zipfile
 from pathlib import Path
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open
+from unittest.mock import patch
+
+import pytest
 from app.utils.file_processor import FileProcessor
 
 
@@ -76,20 +77,19 @@ class TestFileProcessor:
 
         try:
             temp_dir = processor._extract_zip(temp_zip.name)
-            assert os.path.exists(temp_dir)
-            assert os.path.exists(os.path.join(temp_dir, 'test.py'))
+            assert Path(temp_dir).exists()
+            assert (Path(temp_dir) / 'test.py').exists()
 
             # Read extracted file
-            with open(os.path.join(temp_dir, 'test.py')) as f:
-                content = f.read()
+            content = (Path(temp_dir) / 'test.py').read_text()
             assert content == 'print("hello")'
 
         finally:
             # Cleanup
             import shutil
-            if os.path.exists(temp_dir):
+            if Path(temp_dir).exists():
                 shutil.rmtree(temp_dir, ignore_errors=True)
-            os.unlink(temp_zip.name)
+            Path(temp_zip.name).unlink()
 
     def test_extract_zip_failure(self):
         """Test zip extraction failure."""
@@ -102,25 +102,25 @@ class TestFileProcessor:
         """Test directory scanning for code files."""
         # Create temporary directory structure
         with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
             # Create some files
-            py_file = os.path.join(temp_dir, "test.py")
-            js_file = os.path.join(temp_dir, "script.js")
-            txt_file = os.path.join(temp_dir, "readme.txt")
+            py_file = temp_path / "test.py"
+            js_file = temp_path / "script.js"
+            txt_file = temp_path / "readme.txt"
 
             # Create subdirectory with files
-            sub_dir = os.path.join(temp_dir, "src")
-            os.makedirs(sub_dir)
-            sub_py_file = os.path.join(sub_dir, "main.py")
+            sub_dir = temp_path / "src"
+            sub_dir.mkdir()
+            sub_py_file = sub_dir / "main.py"
 
             # Create excluded directory
-            cache_dir = os.path.join(temp_dir, "__pycache__")
-            os.makedirs(cache_dir)
-            cache_file = os.path.join(cache_dir, "test.pyc")
+            cache_dir = temp_path / "__pycache__"
+            cache_dir.mkdir()
+            cache_file = cache_dir / "test.pyc"
 
             # Write files
             for file_path in [py_file, js_file, txt_file, sub_py_file, cache_file]:
-                with open(file_path, 'w') as f:
-                    f.write("test content")
+                file_path.write_text("test content")
 
             processor = FileProcessor.__new__(FileProcessor)
             processor.supported_extensions = ['.py', '.js']
@@ -129,24 +129,24 @@ class TestFileProcessor:
             files = processor._scan_directory(temp_dir)
 
             # Should find .py and .js files but not .txt or files in __pycache__
-            assert py_file in files
-            assert js_file in files
-            assert sub_py_file in files
-            assert txt_file not in files
-            assert cache_file not in files
+            assert str(py_file) in files
+            assert str(js_file) in files
+            assert str(sub_py_file) in files
+            assert str(txt_file) not in files
+            assert str(cache_file) not in files
 
     def test_create_file_data(self):
         """Test file data creation."""
         # Create temporary files
         with tempfile.TemporaryDirectory() as temp_dir:
-            py_file = os.path.join(temp_dir, "test.py")
+            temp_path = Path(temp_dir)
+            py_file = temp_path / "test.py"
             content = "print('hello')\nprint('world')\n"
 
-            with open(py_file, 'w') as f:
-                f.write(content)
+            py_file.write_text(content)
 
             processor = FileProcessor.__new__(FileProcessor)
-            files_data = processor._create_file_data([py_file], temp_dir)
+            files_data = processor._create_file_data([str(py_file)], temp_dir)
 
             assert len(files_data) == 1
             file_data = files_data[0]
@@ -157,7 +157,7 @@ class TestFileProcessor:
             assert file_data["size"] == len(content)
             assert file_data["lines"] == 2  # Two print lines
             assert file_data["path"] == "test.py"  # Relative path
-            assert file_data["absolute_path"] == py_file
+            assert file_data["absolute_path"] == str(py_file)
 
     def test_process_input_single_file(self):
         """Test processing single file input."""
@@ -173,10 +173,10 @@ class TestFileProcessor:
                 files_data = processor.process_input(temp_file.name)
 
                 assert len(files_data) == 1
-                assert files_data[0]["name"] == os.path.basename(temp_file.name)
+                assert files_data[0]["name"] == Path(temp_file.name).name
                 assert files_data[0]["extension"] == ".py"
             finally:
-                os.unlink(temp_file.name)
+                Path(temp_file.name).unlink()
 
     def test_process_input_unsupported_file(self):
         """Test processing unsupported file type."""
@@ -188,15 +188,15 @@ class TestFileProcessor:
                 with pytest.raises(Exception, match="Unsupported file type"):
                     processor.process_input(temp_file.name)
             finally:
-                os.unlink(temp_file.name)
+                Path(temp_file.name).unlink()
 
     def test_process_input_directory(self):
         """Test processing directory input."""
         with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
             # Create Python file
-            py_file = os.path.join(temp_dir, "test.py")
-            with open(py_file, 'w') as f:
-                f.write("print('hello')")
+            py_file = temp_path / "test.py"
+            py_file.write_text("print('hello')")
 
             processor = FileProcessor.__new__(FileProcessor)
             processor.supported_extensions = ['.py']
@@ -243,7 +243,7 @@ class TestFileProcessor:
             assert files_data[0]["content"] == 'print("hello from zip")'
             assert "src/main.py" in files_data[0]["path"]
         finally:
-            os.unlink(temp_zip.name)
+            Path(temp_zip.name).unlink()
 
     def test_get_project_info(self):
         """Test project information extraction."""
