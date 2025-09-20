@@ -47,7 +47,7 @@ class LLMClient:
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
-        print(f"🔧 Initializing LLM client...")
+        print("🔧 Initializing LLM client...")
         print(f"   API key available: {'***SET***' if api_key else 'NOT_SET'}")
         print(f"   Base URL: {base_url}")
 
@@ -61,7 +61,7 @@ class LLMClient:
 
         try:
             client = OpenAI(api_key=api_key, base_url=base_url)
-            print(f"   ✅ OpenAI client initialized successfully")
+            print("   ✅ OpenAI client initialized successfully")
             return client
         except Exception as e:
             error_msg = f"Failed to initialize OpenAI client: {str(e)}"

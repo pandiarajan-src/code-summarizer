@@ -11,8 +11,7 @@ def setup_logging(
     log_file: str | None = None,
     log_format: str | None = None,
 ) -> None:
-    """
-    Configure logging for the application.
+    """Configure logging for the application.
 
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -51,8 +50,7 @@ def setup_logging(
 
 
 def get_logger(name: str) -> logging.Logger:
-    """
-    Get a logger instance with the given name.
+    """Get a logger instance with the given name.
 
     Args:
         name: Logger name (usually __name__)

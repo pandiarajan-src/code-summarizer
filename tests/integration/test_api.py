@@ -423,9 +423,14 @@ class TestErrorHandling:
         response = client.post("/api/analyze", json=payload)
         assert response.status_code == 422
 
-    @patch.dict(os.environ, {}, clear=True)  # Remove API key
-    def test_missing_api_key(self, client):
+    @patch('app.services.llm_client.LLMClient._initialize_client')
+    def test_missing_api_key(self, mock_init_client, client):
         """Test handling when API key is missing."""
+        # Mock the LLM client initialization to raise an error
+        mock_init_client.side_effect = ValueError(
+            "OPENAI_API_KEY environment variable is required"
+        )
+
         payload = {
             "files": [
                 {"filename": "test.py", "content": "print('hello')"}

@@ -8,8 +8,11 @@ from fastapi import Depends
 from fastapi import File
 from fastapi import Form
 from fastapi import HTTPException
+from fastapi import Request
 from fastapi import UploadFile
 from fastapi import status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from ...core.exceptions import AnalysisError
 from ...core.exceptions import FileProcessingError
@@ -28,6 +31,16 @@ from ..deps import get_analysis_dependencies
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Analysis"])
+
+
+# Get limiter from app state
+def get_limiter(request: Request) -> Limiter:
+    """Get the rate limiter from FastAPI app state."""
+    return request.app.state.limiter  # type: ignore[no-any-return]
+
+
+# Create limiter instance for decorator use
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/analyze", response_model=AnalysisResponse)
@@ -57,7 +70,9 @@ async def analyze_files(
 
 
 @router.post("/analyze/upload", response_model=AnalysisResponse)
+@limiter.limit("10/minute")
 async def analyze_uploaded_files(
+    request: Request,  # noqa: ARG001
     files: list[UploadFile] = File(..., description="Files to analyze"),
     config_overrides: str | None = Form(
         None, description="JSON string of config overrides"
@@ -199,7 +214,9 @@ async def analyze_batch(
 
 
 @router.post("/analyze/batch/upload", response_model=BatchAnalysisResponse)
+@limiter.limit("5/minute")
 async def analyze_batch_uploaded_files(
+    request: Request,  # noqa: ARG001
     files: list[UploadFile] = File(..., description="Files to analyze in batch"),
     config_overrides: str | None = Form(
         None, description="JSON string of config overrides"

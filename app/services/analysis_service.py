@@ -58,8 +58,10 @@ class AnalysisService:
                 config_path=self.settings.config_file_path
             )
 
-            print(f"✅ Analysis components initialized successfully")
-            print(f"   API key configured: {'***SET***' if self.settings.openai_api_key else 'NOT_SET'}")
+            print("✅ Analysis components initialized successfully")
+            print(
+                f"   API key configured: {'***SET***' if self.settings.openai_api_key else 'NOT_SET'}"
+            )
             print(f"   Model: {self.settings.llm_model}")
 
         except Exception as e:

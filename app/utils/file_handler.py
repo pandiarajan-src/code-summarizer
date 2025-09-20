@@ -1,5 +1,6 @@
 """File handling utilities for FastAPI file uploads and processing."""
 
+import logging
 import tempfile
 import zipfile
 from pathlib import Path
@@ -12,7 +13,11 @@ from ..core.exceptions import FileProcessingError
 from ..core.exceptions import FileTooLargeError
 from ..core.exceptions import TooManyFilesError
 from ..core.exceptions import UnsupportedFileTypeError
+from ..core.security import sanitize_filename
+from ..core.security import validate_file_path
 from ..models.requests import FileContent
+
+logger = logging.getLogger(__name__)
 
 
 class FileHandler:
@@ -105,6 +110,14 @@ class FileHandler:
 
     async def _create_file_content(self, filename: str, content: bytes) -> FileContent:
         """Create FileContent object from filename and content."""
+        # Sanitize and validate filename for security
+        try:
+            safe_filename = sanitize_filename(filename)
+            validated_filename = validate_file_path(safe_filename)
+        except ValueError as e:
+            logger.warning(f"Unsafe filename detected: {filename} - {str(e)}")
+            raise FileProcessingError(f"Invalid filename: {str(e)}")
+
         # Decode content to string
         try:
             # Try UTF-8 first
@@ -116,14 +129,16 @@ class FileHandler:
             except UnicodeDecodeError:
                 # If still fails, treat as binary and create a placeholder
                 raise FileProcessingError(
-                    f"Unable to decode file {filename} as text. "
+                    f"Unable to decode file {safe_filename} as text. "
                     "Only text files are supported for analysis."
                 )
 
         # Get file extension
-        file_ext = Path(filename).suffix.lower()
+        file_ext = Path(safe_filename).suffix.lower()
 
-        return FileContent(filename=filename, content=text_content, file_type=file_ext)
+        return FileContent(
+            filename=safe_filename, content=text_content, file_type=file_ext
+        )
 
     async def _extract_zip_content(
         self, zip_filename: str, zip_content: bytes
@@ -147,7 +162,17 @@ class FileHandler:
                     if not file_path.endswith("/") and self._is_supported_file_in_zip(
                         file_path
                     ):
-                        valid_files.append(file_path)
+                        # Validate path for security (prevent zip bombs and path traversal)
+                        try:
+                            # Check for dangerous paths
+                            safe_path = sanitize_filename(Path(file_path).name)
+                            validate_file_path(safe_path)
+                            valid_files.append(file_path)
+                        except ValueError as e:
+                            logger.warning(
+                                f"Skipping unsafe file in zip: {file_path} - {str(e)}"
+                            )
+                            continue
 
                 # Check if too many files
                 if len(valid_files) > self.max_files:

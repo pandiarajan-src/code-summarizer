@@ -2,10 +2,12 @@
 
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
 from pydantic import Field
+from pydantic import ValidationInfo
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
@@ -36,6 +38,68 @@ def find_env_file() -> str | None:
     return None
 
 
+class SecuritySettings(BaseSettings):
+    """Security-related configuration settings."""
+
+    # CORS Configuration
+    cors_origins: str = Field(
+        default="http://localhost,http://127.0.0.1,http://localhost:8080,http://localhost:3000",
+        description="Comma-separated list of allowed CORS origins",
+    )
+    cors_allow_credentials: bool = Field(default=True)
+    cors_allow_methods: str = Field(default="GET,POST,PUT,DELETE,OPTIONS")
+    cors_allow_headers: str = Field(default="*")
+
+    # Rate Limiting
+    rate_limit_requests_per_minute: int = Field(default=60)
+    rate_limit_burst: int = Field(default=10)
+    upload_rate_limit_requests_per_minute: int = Field(default=10)
+    upload_rate_limit_burst: int = Field(default=5)
+
+    # Security Headers
+    security_headers_enabled: bool = Field(default=True)
+    content_security_policy: str = Field(
+        default="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';"
+    )
+
+    # JWT Configuration (for future use)
+    jwt_secret_key: str = Field(
+        default="your-secret-key-change-in-production",
+        description="JWT secret key for token signing",
+    )
+    jwt_algorithm: str = Field(default="HS256")
+    jwt_expire_minutes: int = Field(default=30)
+
+    # API Key Security
+    api_key_header_name: str = Field(default="X-API-Key")
+    require_api_key: bool = Field(default=False)
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, v: str) -> str:
+        """Validate CORS origins format."""
+        if v:
+            origins = [origin.strip() for origin in v.split(",")]
+            for origin in origins:
+                if origin != "*" and not (
+                    origin.startswith("http://") or origin.startswith("https://")
+                ):
+                    raise ValueError(f"Invalid CORS origin format: {origin}")
+        return v
+
+    @field_validator("jwt_secret_key")
+    @classmethod
+    def validate_jwt_secret(cls, v: str) -> str:
+        """Validate JWT secret key strength."""
+        if len(v) < 32:
+            logger.warning("JWT secret key should be at least 32 characters long")
+        if v == "your-secret-key-change-in-production":
+            logger.warning(
+                "JWT secret key is using default value - change for production!"
+            )
+        return v
+
+
 class Settings(BaseSettings):
     """Application configuration settings."""
 
@@ -53,10 +117,13 @@ class Settings(BaseSettings):
     api_version: str = "1.0.0"
     debug: bool = Field(default=False)
 
-    # Server Configuration
-    host: str = Field(default="127.0.0.1")  # Changed from 0.0.0.0 for security
+    # Server Configuration - Environment-aware host binding
+    host: str = Field(default="127.0.0.1")
     port: int = Field(default=8000)
     reload: bool = Field(default=False)
+    container_mode: bool = Field(
+        default=False, description="Whether running in container"
+    )
 
     # File Upload Configuration
     max_file_size_mb: int = Field(default=50)
@@ -104,17 +171,15 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(
         ...,  # Required field
         alias="OPENAI_API_KEY",
-        description="OpenAI API key for LLM access"
+        description="OpenAI API key for LLM access",
     )
     openai_base_url: str | None = Field(
         default=None,
         alias="OPENAI_BASE_URL",
-        description="Optional custom OpenAI base URL"
+        description="Optional custom OpenAI base URL",
     )
     llm_model: str = Field(
-        default="gpt-4o",
-        alias="MODEL_NAME",
-        description="LLM model to use"
+        default="gpt-4o", alias="MODEL_NAME", description="LLM model to use"
     )
     llm_max_tokens: int = Field(default=4000)
     llm_temperature: float = Field(default=0.1)
@@ -170,28 +235,55 @@ class Settings(BaseSettings):
     @field_validator("openai_api_key")
     @classmethod
     def validate_openai_api_key(cls, v: str) -> str:
-        """Validate OpenAI API key is present."""
+        """Validate OpenAI API key format and presence."""
         if not v:
             raise ValueError(
                 "OPENAI_API_KEY environment variable is required. "
                 "Please set it in your .env file or environment."
             )
 
-        # Remove overly strict validation - support Azure, custom deployments, etc.
-        # Just check that it's not obviously a placeholder
-        if v.lower() in ["your_api_key_here", "your-api-key", "placeholder", "sk-", "test"]:
+        v = v.strip()
+
+        # Check for placeholder values
+        placeholder_values = [
+            "your_api_key_here",
+            "your-api-key",
+            "placeholder",
+            "sk-",
+            "test",
+            "demo",
+            "example",
+        ]
+        if v.lower() in placeholder_values:
             raise ValueError(
                 "OPENAI_API_KEY appears to be a placeholder value. "
                 "Please set your actual API key."
             )
 
-        if len(v.strip()) < 5:
+        # Validate minimum length
+        if len(v) < 5:
             raise ValueError(
-                "OPENAI_API_KEY appears to be too short. "
-                "Please check your API key."
+                "OPENAI_API_KEY appears to be too short. Please check your API key."
             )
 
-        return v.strip()
+        # Validate format for different API providers
+        valid_patterns = [
+            r"^sk-[a-zA-Z0-9]{48,}$",  # OpenAI format
+            r"^[a-zA-Z0-9]{32,}$",  # Azure/Generic format
+            r"^gsk_[a-zA-Z0-9]{52}$",  # Groq format
+            r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",  # UUID format
+        ]
+
+        is_valid_format = any(re.match(pattern, v) for pattern in valid_patterns)
+
+        if not is_valid_format:
+            logger.warning(
+                f"API key format doesn't match common patterns. "
+                f"Length: {len(v)}, Starts with: {v[:10]}..."
+            )
+            # Don't raise error for custom formats, just warn
+
+        return v
 
     @field_validator("max_file_size_mb")
     @classmethod
@@ -217,10 +309,40 @@ class Settings(BaseSettings):
             raise ValueError("port must be between 1 and 65535")
         return v
 
+    @field_validator("host")
+    @classmethod
+    def validate_host(cls, v: str, _info: ValidationInfo) -> str:
+        """Validate and auto-configure host based on environment."""
+        # Check if running in container
+        in_container = (
+            os.environ.get("CONTAINER_MODE") == "true"
+            or os.environ.get("DOCKER_CONTAINER") == "true"
+            or Path("/.dockerenv").exists()
+        )
+
+        if in_container and v == "127.0.0.1":
+            logger.info("Container detected: changing host from 127.0.0.1 to 0.0.0.0")
+            return "0.0.0.0"
+        if not in_container and v == "0.0.0.0":
+            logger.info(
+                "Local environment detected: changing host from 0.0.0.0 to 127.0.0.1"
+            )
+            return "127.0.0.1"
+
+        return v
+
+    # Security Settings Integration
+    security: SecuritySettings = Field(default_factory=SecuritySettings)
+
     @property
     def max_file_size_bytes(self) -> int:
         """Get max file size in bytes."""
         return self.max_file_size_mb * 1024 * 1024
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Get CORS origins as a list."""
+        return [origin.strip() for origin in self.security.cors_origins.split(",")]
 
     def to_legacy_config(self) -> dict[str, Any]:
         """Convert to legacy configuration format for existing modules."""
@@ -253,7 +375,9 @@ class Settings(BaseSettings):
             "env_file_found": env_file_path,
             "env_file_exists": Path(env_file_path).exists() if env_file_path else False,
             "environment_variables": {
-                "OPENAI_API_KEY": "***SET***" if os.getenv("OPENAI_API_KEY") else "NOT_SET",
+                "OPENAI_API_KEY": (
+                    "***SET***" if os.getenv("OPENAI_API_KEY") else "NOT_SET"
+                ),
                 "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "NOT_SET"),
                 "MODEL_NAME": os.getenv("MODEL_NAME", "NOT_SET"),
                 "PYTHONPATH": os.getenv("PYTHONPATH", "NOT_SET"),
@@ -263,15 +387,15 @@ class Settings(BaseSettings):
                 "base_url_configured": self.openai_base_url or "NOT_SET",
                 "model_configured": self.llm_model,
                 "debug_mode": self.debug,
-            }
+            },
         }
 
         if env_file_path:
             try:
-                with open(env_file_path, 'r') as f:
+                with open(env_file_path) as f:
                     content = f.read()
                     debug_data["env_file_has_api_key"] = "OPENAI_API_KEY=" in content
-                    debug_data["env_file_size"] = len(content)
+                    debug_data["env_file_size"] = str(len(content))
             except Exception as e:
                 debug_data["env_file_error"] = str(e)
 
@@ -283,7 +407,7 @@ def create_settings() -> Settings:
     """Create settings instance with proper error handling."""
     try:
         logger.debug("Loading application settings...")
-        settings_instance = Settings()
+        settings_instance = Settings(OPENAI_API_KEY=os.getenv("OPENAI_API_KEY", ""))
         logger.info("Settings loaded successfully")
         return settings_instance
     except Exception as e:
@@ -296,22 +420,25 @@ def create_settings() -> Settings:
             "env_file_found": env_file_path,
             "env_file_exists": Path(env_file_path).exists() if env_file_path else False,
             "environment_variables": {
-                "OPENAI_API_KEY": "***SET***" if os.getenv("OPENAI_API_KEY") else "NOT_SET",
+                "OPENAI_API_KEY": (
+                    "***SET***" if os.getenv("OPENAI_API_KEY") else "NOT_SET"
+                ),
                 "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "NOT_SET"),
                 "MODEL_NAME": os.getenv("MODEL_NAME", "NOT_SET"),
                 "PYTHONPATH": os.getenv("PYTHONPATH", "NOT_SET"),
-            }
+            },
         }
 
         if env_file_path:
             try:
-                with open(env_file_path, 'r') as f:
+                with open(env_file_path) as f:
                     content = f.read()
                     debug_info["env_file_has_api_key"] = "OPENAI_API_KEY=" in content
             except Exception as file_err:
                 debug_info["env_file_error"] = str(file_err)
 
         import json
+
         logger.debug(f"Debug info: {json.dumps(debug_info, indent=2)}")
 
         logger.error("Common solutions:")
