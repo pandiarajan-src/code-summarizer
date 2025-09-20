@@ -170,7 +170,7 @@ class AnalysisService:
                 if not Path(path).exists():
                     raise FileProcessingError(f"Path does not exist: {path}")
 
-                files_data = self.file_processor.process_input(path)
+                files_data = await self.file_processor.process_input_async(path)
                 all_files_data.extend(files_data)
 
             if not all_files_data:
@@ -292,6 +292,8 @@ class AnalysisService:
 
         batch_results = []
         total_tokens = 0
+        # Cache batch analysis results to avoid re-processing for markdown
+        self._batch_analysis_cache = {}
 
         for i, batch in enumerate(batches):
             if verbose:
@@ -301,6 +303,9 @@ class AnalysisService:
             try:
                 result = self.llm_client.analyze_batch(batch)
                 batch_processing_time = time.time() - batch_start_time
+
+                # Cache the full result for markdown generation
+                self._batch_analysis_cache[i] = result
 
                 # Create batch result
                 batch_result = BatchAnalysisResult(
@@ -375,14 +380,21 @@ class AnalysisService:
             return None
 
         try:
-            # Convert batch results back to legacy format for markdown formatter
-            # Need to reconstruct the full analysis results including file details
+            # Use cached batch analysis results to avoid re-processing
             legacy_analysis_results = []
             for i, _br in enumerate(batch_results):
-                # Get the original batch analysis result from LLM client
-                batch = batches[i]
-                full_result = self.llm_client.analyze_batch(batch)
-                legacy_analysis_results.append(full_result)
+                # Use cached result instead of re-analyzing
+                if (
+                    hasattr(self, "_batch_analysis_cache")
+                    and i in self._batch_analysis_cache
+                ):
+                    cached_result = self._batch_analysis_cache[i]
+                    legacy_analysis_results.append(cached_result)
+                else:
+                    # Fallback: re-analyze only if cache miss (shouldn't happen normally)
+                    batch = batches[i]
+                    full_result = self.llm_client.analyze_batch(batch)
+                    legacy_analysis_results.append(full_result)
 
             return self.markdown_formatter.format_results(
                 files_data, legacy_analysis_results

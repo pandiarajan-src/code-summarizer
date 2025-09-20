@@ -7,10 +7,58 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+import httpx
 from openai import OpenAI
 
 if TYPE_CHECKING:
     from app.core.config import Settings
+
+
+class OpenAIClientPool:
+    """Connection pool manager for OpenAI clients."""
+
+    _instance = None
+    _clients: dict[str, OpenAI] = {}
+    _http_client: httpx.Client | None = None
+
+    def __new__(cls) -> "OpenAIClientPool":
+        """Create singleton instance of OpenAI client pool."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    @classmethod
+    def get_client(
+        cls, api_key: str, base_url: str = "https://api.openai.com/v1"
+    ) -> OpenAI:
+        """Get or create an OpenAI client with connection pooling."""
+        client_key = f"{api_key[:10]}...{base_url}"
+
+        if client_key not in cls._clients:
+            # Create shared HTTP client with connection pooling
+            if cls._http_client is None:
+                cls._http_client = httpx.Client(
+                    limits=httpx.Limits(
+                        max_keepalive_connections=10,
+                        max_connections=20,
+                        keepalive_expiry=30.0,
+                    ),
+                    timeout=httpx.Timeout(60.0),
+                )
+
+            cls._clients[client_key] = OpenAI(
+                api_key=api_key, base_url=base_url, http_client=cls._http_client
+            )
+
+        return cls._clients[client_key]
+
+    @classmethod
+    def close_all(cls) -> None:
+        """Close all pooled connections."""
+        if cls._http_client:
+            cls._http_client.close()
+            cls._http_client = None
+        cls._clients.clear()
 
 
 class LLMClient:
@@ -80,11 +128,11 @@ class LLMClient:
             return {}
 
     def _initialize_client_from_settings(self, settings: "Settings") -> OpenAI:
-        """Initialize OpenAI client from Pydantic settings."""
+        """Initialize OpenAI client from Pydantic settings with connection pooling."""
         api_key = settings.openai_api_key
         base_url = settings.openai_base_url or "https://api.openai.com/v1"
 
-        print("🔧 Initializing LLM client...")
+        print("🔧 Initializing LLM client with connection pooling...")
         print(f"   API key available: {'***SET***' if api_key else 'NOT_SET'}")
         print(f"   Base URL: {base_url}")
 
@@ -96,15 +144,15 @@ class LLMClient:
             print(f"   ❌ {error_msg}")
             raise ValueError(error_msg)
 
-        print("   ✅ LLM client initialized successfully")
-        return OpenAI(api_key=api_key, base_url=base_url)
+        print("   ✅ LLM client initialized successfully with connection pooling")
+        return OpenAIClientPool.get_client(api_key=api_key, base_url=base_url)
 
     def _initialize_client(self) -> OpenAI:
-        """Initialize OpenAI client with API key and base URL."""
+        """Initialize OpenAI client with API key and base URL using connection pooling."""
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
-        print("🔧 Initializing LLM client...")
+        print("🔧 Initializing LLM client with connection pooling...")
         print(f"   API key available: {'***SET***' if api_key else 'NOT_SET'}")
         print(f"   Base URL: {base_url}")
 
@@ -117,8 +165,10 @@ class LLMClient:
             raise ValueError(error_msg)
 
         try:
-            client = OpenAI(api_key=api_key, base_url=base_url)
-            print("   ✅ OpenAI client initialized successfully")
+            client = OpenAIClientPool.get_client(api_key=api_key, base_url=base_url)
+            print(
+                "   ✅ OpenAI client initialized successfully with connection pooling"
+            )
             return client
         except Exception as e:
             error_msg = f"Failed to initialize OpenAI client: {str(e)}"

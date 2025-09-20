@@ -234,6 +234,17 @@ class TestAnalysisService:
             "size": 100,
             "lines": 1
         }]
+        # Add async mock for process_input_async
+        async def mock_process_input_async(path):
+            return [{
+                "path": "/path/to/test.py",
+                "name": "test.py",
+                "content": "print('hello')",
+                "extension": ".py",
+                "size": 100,
+                "lines": 1
+            }]
+        mock_file_processor_instance.process_input_async = mock_process_input_async
         service.file_processor = mock_file_processor_instance
 
         # Mock context manager

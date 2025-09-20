@@ -55,10 +55,10 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"result": "success"}'
 
-        with patch("app.services.llm_client.OpenAI") as mock_openai:
+        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
-            mock_openai.return_value = mock_client
+            mock_get_client.return_value = mock_client
 
             client = LLMClient()
             result = client._make_api_call("test prompt")
@@ -73,10 +73,10 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = None
 
-        with patch("app.services.llm_client.OpenAI") as mock_openai:
+        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
-            mock_openai.return_value = mock_client
+            mock_get_client.return_value = mock_client
 
             client = LLMClient()
 
@@ -140,10 +140,10 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"languages": ["Python", "JavaScript"]}'
 
-        with patch("app.services.llm_client.OpenAI") as mock_openai:
+        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
-            mock_openai.return_value = mock_client
+            mock_get_client.return_value = mock_client
 
             client = LLMClient()
 
@@ -166,10 +166,10 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"purpose": "Test file", "complexity": "low"}'
 
-        with patch("app.services.llm_client.OpenAI") as mock_openai:
+        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
-            mock_openai.return_value = mock_client
+            mock_get_client.return_value = mock_client
 
             client = LLMClient()
 
@@ -202,10 +202,10 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"purpose": "Test file"}'
 
-        with patch("app.services.llm_client.OpenAI") as mock_openai:
+        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
-            mock_openai.return_value = mock_client
+            mock_get_client.return_value = mock_client
 
             client = LLMClient()
 
@@ -232,10 +232,10 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"batch_summary": {"main_purpose": "Web application"}}'
 
-        with patch("app.services.llm_client.OpenAI") as mock_openai:
+        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
-            mock_openai.return_value = mock_client
+            mock_get_client.return_value = mock_client
 
             client = LLMClient()
 
@@ -270,10 +270,10 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"project_type": "Web application", "main_language": "Python"}'
 
-        with patch("app.services.llm_client.OpenAI") as mock_openai:
+        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
-            mock_openai.return_value = mock_client
+            mock_get_client.return_value = mock_client
 
             client = LLMClient()
 

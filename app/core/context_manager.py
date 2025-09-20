@@ -55,6 +55,9 @@ class ContextManager:
             # Fallback to cl100k_base for unknown models
             self.tokenizer = tiktoken.get_encoding("cl100k_base")
 
+        # Token count cache to avoid redundant calculations
+        self._token_cache: dict[str, int] = {}
+
     def _load_legacy_config(self, config_path: str) -> dict[str, Any]:
         """Load configuration from YAML file (legacy support)."""
         try:
@@ -69,15 +72,38 @@ class ContextManager:
             return {}
 
     def count_tokens(self, text: str) -> int:
-        """Count tokens in text using the model's tokenizer."""
+        """Count tokens in text using the model's tokenizer with caching."""
+        # Create a cache key from text hash for memory efficiency
+        import hashlib
+
+        cache_key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+        # Check cache first
+        if cache_key in self._token_cache:
+            return self._token_cache[cache_key]
+
         try:
-            return len(self.tokenizer.encode(text))
+            token_count = len(self.tokenizer.encode(text))
         except Exception:
             # Fallback: rough estimation (4 chars per token average)
-            return len(text) // 4
+            token_count = len(text) // 4
+
+        # Cache the result
+        self._token_cache[cache_key] = token_count
+        return token_count
 
     def estimate_file_tokens(self, file_data: dict[str, Any]) -> int:
-        """Estimate tokens needed for a single file including metadata."""
+        """Estimate tokens needed for a single file including metadata with caching."""
+        # Create a cache key for the file based on path and content hash
+        import hashlib
+
+        content_hash = hashlib.sha256(file_data["content"].encode("utf-8")).hexdigest()
+        file_cache_key = f"file:{file_data['path']}:{content_hash}:{file_data['lines']}"
+
+        # Check file-level cache first
+        if file_cache_key in self._token_cache:
+            return self._token_cache[file_cache_key]
+
         content_tokens = self.count_tokens(file_data["content"])
 
         # Add estimated tokens for metadata (filename, path, etc.)
@@ -87,7 +113,11 @@ class ContextManager:
             f"Lines: {file_data['lines']}\n"
         )
 
-        return content_tokens + metadata_tokens
+        total_tokens = content_tokens + metadata_tokens
+
+        # Cache the file-level result
+        self._token_cache[file_cache_key] = total_tokens
+        return total_tokens
 
     def create_batches(
         self, files_data: list[dict[str, Any]]

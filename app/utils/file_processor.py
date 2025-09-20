@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+import aiofiles
+
 if TYPE_CHECKING:
     from app.core.config import Settings
 
@@ -99,7 +101,7 @@ class FileProcessor:
         return False
 
     def _read_file_content(self, file_path: str) -> str:
-        """Read file content with encoding detection."""
+        """Read file content with encoding detection (sync version for backward compatibility)."""
         encodings = ["utf-8", "latin-1", "cp1252"]
 
         for encoding in encodings:
@@ -112,6 +114,22 @@ class FileProcessor:
         # If all encodings fail, read as binary and decode with errors='ignore'
         with Path(file_path).open("rb") as f:
             return f.read().decode("utf-8", errors="ignore")
+
+    async def _read_file_content_async(self, file_path: str) -> str:
+        """Read file content with encoding detection using async I/O."""
+        encodings = ["utf-8", "latin-1", "cp1252"]
+
+        for encoding in encodings:
+            try:
+                async with aiofiles.open(file_path, encoding=encoding) as f:
+                    return await f.read()
+            except UnicodeDecodeError:
+                continue
+
+        # If all encodings fail, read as binary and decode with errors='ignore'
+        async with aiofiles.open(file_path, "rb") as f:
+            content = await f.read()
+            return content.decode("utf-8", errors="ignore")
 
     def _extract_zip(self, zip_path: str) -> str:
         """Extract zip file to temporary directory."""
@@ -152,12 +170,47 @@ class FileProcessor:
     def _create_file_data(
         self, file_paths: list[str], base_dir: str | None = None
     ) -> list[dict[str, Any]]:
-        """Create file data structures with content and metadata."""
+        """Create file data structures with content and metadata (sync version for backward compatibility)."""
         files_data = []
 
         for file_path in file_paths:
             try:
                 content = self._read_file_content(file_path)
+                path_obj = Path(file_path)
+
+                # Calculate relative path if base_dir provided
+                relative_path = file_path
+                if base_dir:
+                    base_path = Path(base_dir)
+                    relative_path = str(path_obj.relative_to(base_path))
+
+                file_info = {
+                    "path": relative_path,
+                    "absolute_path": file_path,
+                    "name": path_obj.name,
+                    "extension": path_obj.suffix,
+                    "content": content,
+                    "size": len(content),
+                    "lines": len(content.splitlines()),
+                }
+
+                files_data.append(file_info)
+
+            except Exception as e:
+                print(f"Warning: Failed to process file {file_path}: {str(e)}")
+                continue
+
+        return files_data
+
+    async def _create_file_data_async(
+        self, file_paths: list[str], base_dir: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Create file data structures with content and metadata using async I/O."""
+        files_data = []
+
+        for file_path in file_paths:
+            try:
+                content = await self._read_file_content_async(file_path)
                 path_obj = Path(file_path)
 
                 # Calculate relative path if base_dir provided
@@ -185,7 +238,7 @@ class FileProcessor:
         return files_data
 
     def process_input(self, input_path: str) -> list[dict[str, Any]]:
-        """Process input (single file or zip) and return file data.
+        """Process input (single file or zip) and return file data (sync version for backward compatibility).
 
         Returns:
             List of file data dictionaries.
@@ -209,8 +262,33 @@ class FileProcessor:
 
         raise Exception(f"Input path does not exist: {input_path}")
 
+    async def process_input_async(self, input_path: str) -> list[dict[str, Any]]:
+        """Process input (single file or zip) and return file data using async I/O.
+
+        Returns:
+            List of file data dictionaries.
+        """
+        path_obj = Path(input_path).resolve()
+
+        # Handle single file
+        if path_obj.is_file():
+            if str(path_obj).lower().endswith(".zip"):
+                return await self._process_zip_file_async(str(path_obj))
+            if self._is_supported_file(str(path_obj)):
+                return await self._create_file_data_async([str(path_obj)])
+            raise Exception(f"Unsupported file type: {path_obj.suffix}")
+
+        # Handle directory
+        if path_obj.is_dir():
+            code_files = self._scan_directory(str(path_obj))
+            if not code_files:
+                raise Exception("No supported code files found in directory")
+            return await self._create_file_data_async(code_files, str(path_obj))
+
+        raise Exception(f"Input path does not exist: {input_path}")
+
     def _process_zip_file(self, zip_path: str) -> list[dict[str, Any]]:
-        """Process zip file and return file data."""
+        """Process zip file and return file data (sync version for backward compatibility)."""
         temp_dir = None
 
         try:
@@ -225,6 +303,30 @@ class FileProcessor:
 
             # Create file data
             files_data = self._create_file_data(code_files, temp_dir)
+
+            return files_data
+
+        finally:
+            # Cleanup temporary directory
+            if temp_dir and Path(temp_dir).exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
+
+    async def _process_zip_file_async(self, zip_path: str) -> list[dict[str, Any]]:
+        """Process zip file and return file data using async I/O."""
+        temp_dir = None
+
+        try:
+            # Extract zip
+            temp_dir = self._extract_zip(zip_path)
+
+            # Find code files
+            code_files = self._scan_directory(temp_dir)
+
+            if not code_files:
+                raise Exception("No supported code files found in zip archive")
+
+            # Create file data
+            files_data = await self._create_file_data_async(code_files, temp_dir)
 
             return files_data
 
