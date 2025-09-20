@@ -2,25 +2,42 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
-import yaml
+if TYPE_CHECKING:
+    from app.core.config import Settings
 
 
 class MarkdownFormatter:
     """Generates structured markdown reports from code analysis results."""
 
-    def __init__(self, config_path: str = "config.yaml") -> None:
+    def __init__(
+        self, config_path: str | None = None, *, settings: "Settings | None" = None
+    ) -> None:
         """Initialize markdown formatter with configuration.
 
         Args:
-            config_path: Path to configuration YAML file.
+            config_path: Legacy config path for backward compatibility
+                (positional for backward compat)
+            settings: Pydantic Settings object (preferred, keyword-only)
         """
-        self.config = self._load_config(config_path)
+        if settings:
+            # Settings-based configuration
+            # (no specific config needed for markdown formatter)
+            pass
+        elif config_path:
+            # Legacy support
+            self.config = self._load_legacy_config(config_path)
+        else:
+            # No config needed for markdown formatter currently
+            pass
 
-    def _load_config(self, config_path: str) -> dict[str, Any]:
-        """Load configuration from YAML file."""
+    def _load_legacy_config(self, config_path: str) -> dict[str, Any]:
+        """Load configuration from YAML file (legacy support)."""
         try:
+            import yaml
+
             with Path(config_path).open(encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except FileNotFoundError:
@@ -147,11 +164,19 @@ class MarkdownFormatter:
                     if "patterns" in batch_summary:
                         patterns.extend(batch_summary["patterns"])
 
+            main_purpose = (
+                "; ".join(set(purposes))
+                if purposes
+                else "Code analysis and documentation"
+            )
+            key_patterns = (
+                ", ".join(set(patterns)) if patterns else "Standard code organization"
+            )
             return f"""## 🎯 Project Summary
 
-**Main Purpose**: {"; ".join(set(purposes)) if purposes else "Code analysis and documentation"}
+**Main Purpose**: {main_purpose}
 
-**Key Patterns**: {", ".join(set(patterns)) if patterns else "Standard code organization"}"""
+**Key Patterns**: {key_patterns}"""
 
         # Format detailed project summary
         summary_md = "## 🎯 Project Summary\n\n"

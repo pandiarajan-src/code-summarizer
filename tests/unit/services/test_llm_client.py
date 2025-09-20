@@ -1,13 +1,17 @@
-import json
+"""Unit tests for LLMClient class."""
+
+from unittest.mock import MagicMock, mock_open, patch
+
 import pytest
-from unittest.mock import patch, mock_open, MagicMock
+
 from app.services.llm_client import LLMClient
 
 
 class TestLLMClient:
+    """Test suite for LLM client functionality."""
     @patch("pathlib.Path.open", mock_open(read_data="llm:\n  model: gpt-4\n  max_tokens: 2000"))
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
-    @patch("app.services.llm_client.PromptLoader")
+    @patch("app.utils.prompt_loader.PromptLoader")
     def test_init_with_config(self, mock_prompt_loader_class):
         """Test initialization with configuration file."""
         # Create a mock instance
@@ -26,7 +30,7 @@ class TestLLMClient:
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
     def test_init_without_config(self, mock_file):
         """Test initialization without configuration file."""
-        with patch("app.services.llm_client.PromptLoader"):
+        with patch("app.utils.prompt_loader.PromptLoader"):
             client = LLMClient("nonexistent.yaml")
 
             assert client.model == "gpt-4o"
@@ -34,12 +38,18 @@ class TestLLMClient:
 
     def test_init_without_api_key(self):
         """Test initialization fails without API key."""
-        with patch.dict("os.environ", {}, clear=True):
-            with pytest.raises(ValueError, match="OPENAI_API_KEY environment variable is required"):
-                LLMClient()
+        from unittest.mock import MagicMock
+
+        # Create mock settings with no API key
+        mock_settings = MagicMock()
+        mock_settings.openai_api_key = None
+        mock_settings.openai_base_url = "https://api.openai.com/v1"
+
+        with pytest.raises(ValueError, match="OPENAI_API_KEY is required"):
+            LLMClient(settings=mock_settings)
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
-    @patch("app.services.llm_client.PromptLoader")
+    @patch("app.utils.prompt_loader.PromptLoader")
     def test_make_api_call_success(self, mock_prompt_loader):
         """Test successful API call."""
         mock_response = MagicMock()
@@ -57,7 +67,7 @@ class TestLLMClient:
             mock_client.chat.completions.create.assert_called_once()
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
-    @patch("app.services.llm_client.PromptLoader")
+    @patch("app.utils.prompt_loader.PromptLoader")
     def test_make_api_call_empty_response(self, mock_prompt_loader):
         """Test API call with empty response."""
         mock_response = MagicMock()
@@ -120,10 +130,12 @@ class TestLLMClient:
         assert client._guess_language_from_extension(".unknown") == "Unknown"
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
-    @patch("app.services.llm_client.PromptLoader")
+    @patch("app.utils.prompt_loader.PromptLoader")
     def test_detect_languages(self, mock_prompt_loader):
         """Test language detection functionality."""
-        mock_prompt_loader.return_value.language_detection_prompt = "Detect languages: {files_content}"
+        mock_prompt_loader.return_value.language_detection_prompt = (
+            "Detect languages: {files_content}"
+        )
 
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"languages": ["Python", "JavaScript"]}'
@@ -144,10 +156,12 @@ class TestLLMClient:
             assert result == {"languages": ["Python", "JavaScript"]}
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
-    @patch("app.services.llm_client.PromptLoader")
+    @patch("app.utils.prompt_loader.PromptLoader")
     def test_analyze_single_file(self, mock_prompt_loader):
         """Test single file analysis."""
-        mock_prompt_loader.return_value.single_file_analysis_prompt = "Analyze: {filename} {language} {content}"
+        mock_prompt_loader.return_value.single_file_analysis_prompt = (
+            "Analyze: {filename} {language} {content}"
+        )
 
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"purpose": "Test file", "complexity": "low"}'
@@ -178,10 +192,12 @@ class TestLLMClient:
             assert result["line_count"] == 1
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
-    @patch("app.services.llm_client.PromptLoader")
+    @patch("app.utils.prompt_loader.PromptLoader")
     def test_analyze_batch_single_file(self, mock_prompt_loader):
         """Test batch analysis with single file."""
-        mock_prompt_loader.return_value.single_file_analysis_prompt = "Analyze: {filename} {language} {content}"
+        mock_prompt_loader.return_value.single_file_analysis_prompt = (
+            "Analyze: {filename} {language} {content}"
+        )
 
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"purpose": "Test file"}'
@@ -208,7 +224,7 @@ class TestLLMClient:
             assert len(result["files"]) == 1
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
-    @patch("app.services.llm_client.PromptLoader")
+    @patch("app.utils.prompt_loader.PromptLoader")
     def test_analyze_batch_multiple_files(self, mock_prompt_loader):
         """Test batch analysis with multiple files."""
         mock_prompt_loader.return_value.batch_analysis_prompt = "Analyze batch: {files_info}"
@@ -244,10 +260,12 @@ class TestLLMClient:
             assert result["batch_summary"]["main_purpose"] == "Web application"
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
-    @patch("app.services.llm_client.PromptLoader")
+    @patch("app.utils.prompt_loader.PromptLoader")
     def test_generate_project_summary(self, mock_prompt_loader):
         """Test project summary generation."""
-        mock_prompt_loader.return_value.project_summary_prompt = "Summarize project: {total_files} {languages} {analysis_summary}"
+        mock_prompt_loader.return_value.project_summary_prompt = (
+            "Summarize project: {total_files} {languages} {analysis_summary}"
+        )
 
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"project_type": "Web application", "main_language": "Python"}'

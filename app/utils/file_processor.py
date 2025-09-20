@@ -5,31 +5,50 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
-import yaml
+if TYPE_CHECKING:
+    from app.core.config import Settings
 
 
 class FileProcessor:
     """Processes source code files and zip archives for analysis."""
 
-    def __init__(self, config_path: str = "config.yaml") -> None:
+    def __init__(
+        self, config_path: str | None = None, *, settings: "Settings | None" = None
+    ) -> None:
         """Initialize file processor with configuration.
 
         Args:
-            config_path: Path to configuration YAML file.
+            config_path: Legacy config path for backward compatibility
+                (positional for backward compat)
+            settings: Pydantic Settings object (preferred, keyword-only)
         """
-        self.config = self._load_config(config_path)
-        self.supported_extensions = self.config.get("file_processing", {}).get(
-            "supported_extensions", []
-        )
-        self.exclude_patterns = self.config.get("file_processing", {}).get(
-            "exclude_patterns", []
-        )
+        if settings:
+            self.supported_extensions = settings.allowed_file_types
+            self.exclude_patterns = settings.exclude_patterns
+        elif config_path:
+            # Legacy support
+            self.config = self._load_legacy_config(config_path)
+            self.supported_extensions = self.config.get("file_processing", {}).get(
+                "supported_extensions", []
+            )
+            self.exclude_patterns = self.config.get("file_processing", {}).get(
+                "exclude_patterns", []
+            )
+        else:
+            # Use defaults from Settings if no config provided
+            from app.core.config import settings as default_settings
 
-    def _load_config(self, config_path: str) -> dict[str, Any]:
-        """Load configuration from YAML file."""
+            self.supported_extensions = default_settings.allowed_file_types
+            self.exclude_patterns = default_settings.exclude_patterns
+
+    def _load_legacy_config(self, config_path: str) -> dict[str, Any]:
+        """Load configuration from YAML file (legacy support)."""
         try:
+            import yaml
+
             with Path(config_path).open(encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except FileNotFoundError:
@@ -39,11 +58,44 @@ class FileProcessor:
         """Check if file has supported extension."""
         return any(file_path.lower().endswith(ext) for ext in self.supported_extensions)
 
-    def _should_exclude(self, file_path: str) -> bool:
-        """Check if file matches exclude patterns."""
+    def _should_exclude(self, file_path: str, base_dir: str | None = None) -> bool:
+        """Check if file matches exclude patterns.
+
+        Args:
+            file_path: Path to check
+            base_dir: Base directory for relative path calculation (optional)
+        """
+        path_obj = Path(file_path)
+
+        # If we have a base directory, work with relative path for exclusion checks
+        if base_dir:
+            try:
+                rel_path = path_obj.relative_to(Path(base_dir))
+                check_path = str(rel_path)
+                check_parts = rel_path.parts
+            except ValueError:
+                # If file is not relative to base_dir, use absolute path
+                check_path = str(path_obj)
+                check_parts = path_obj.parts
+        else:
+            check_path = str(path_obj)
+            check_parts = path_obj.parts
+
         for pattern in self.exclude_patterns:
-            if pattern.replace("*", "") in file_path:
-                return True
+            # Handle wildcard patterns (like *.pyc)
+            if pattern.startswith("*"):
+                if path_obj.name.endswith(pattern[1:]):
+                    return True
+            # Handle directory patterns
+            else:
+                # Check if pattern matches filename exactly
+                if pattern == path_obj.name:
+                    return True
+
+                # Check if pattern matches any directory in the (relative) path
+                if pattern in check_parts:
+                    return True
+
         return False
 
     def _read_file_content(self, file_path: str) -> str:
@@ -84,17 +136,14 @@ class FileProcessor:
             dirs[:] = [
                 d
                 for d in dirs
-                if not any(
-                    pattern.replace("*", "") in str(root_path / d)
-                    for pattern in self.exclude_patterns
-                )
+                if not self._should_exclude(str(root_path / d), directory)
             ]
 
             for file in files:
                 file_path = root_path / file
 
                 if self._is_supported_file(file) and not self._should_exclude(
-                    str(file_path)
+                    str(file_path), directory
                 ):
                     code_files.append(str(file_path))
 

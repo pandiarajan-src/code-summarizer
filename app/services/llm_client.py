@@ -3,44 +3,101 @@
 import json
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-import yaml
 from openai import OpenAI
 
-from ..utils.prompt_loader import PromptLoader
+if TYPE_CHECKING:
+    from app.core.config import Settings
 
 
 class LLMClient:
     """Client for interacting with Large Language Models via OpenAI-compatible APIs."""
 
     def __init__(
-        self, config_path: str = "config.yaml", prompts_file: str = "prompts.yaml"
+        self,
+        config_path: str | None = None,
+        prompts_file: str | None = None,
+        *,
+        settings: "Settings | None" = None,
     ) -> None:
         """Initialize LLM client with configuration.
 
         Args:
-            config_path: Path to configuration YAML file.
-            prompts_file: Path to prompts configuration file.
+            config_path: Legacy config path for backward compatibility
+                (positional for backward compat)
+            prompts_file: Legacy prompts file path for backward compatibility
+                (positional for backward compat)
+            settings: Pydantic Settings object (preferred, keyword-only)
         """
-        self.config = self._load_config(config_path)
-        self.client = self._initialize_client()
-        self.prompt_loader = PromptLoader(prompts_file)
+        if settings:
+            self.settings = settings
+            self.client = self._initialize_client_from_settings(settings)
+            self.prompts = settings.prompts
+            self.model = settings.llm_model
+            self.max_tokens = settings.llm_max_tokens
+            self.temperature = settings.llm_temperature
+        elif config_path:
+            # Legacy support
+            self.config = self._load_legacy_config(config_path)
+            self.client = self._initialize_client()
 
-        # LLM settings
-        llm_config = self.config.get("llm", {})
-        self.model = llm_config.get("model", "gpt-4o")
-        self.max_tokens = llm_config.get("max_tokens", 4000)
-        self.temperature = llm_config.get("temperature", 0.1)
+            # Load prompts from file if provided
+            if prompts_file:
+                from ..utils.prompt_loader import PromptLoader
 
-    def _load_config(self, config_path: str) -> dict[str, Any]:
-        """Load configuration from YAML file."""
+                self.prompt_loader = PromptLoader(prompts_file)
+                self.prompts = {}
+            else:
+                self.prompts = {}
+
+            # LLM settings
+            llm_config = self.config.get("llm", {})
+            self.model = llm_config.get("model", "gpt-4o")
+            self.max_tokens = llm_config.get("max_tokens", 4000)
+            self.temperature = llm_config.get("temperature", 0.1)
+        else:
+            # Use defaults from Settings if no config provided
+            from app.core.config import settings as default_settings
+
+            self.settings = default_settings
+            self.client = self._initialize_client_from_settings(default_settings)
+            self.prompts = default_settings.prompts
+            self.model = default_settings.llm_model
+            self.max_tokens = default_settings.llm_max_tokens
+            self.temperature = default_settings.llm_temperature
+
+    def _load_legacy_config(self, config_path: str) -> dict[str, Any]:
+        """Load configuration from YAML file (legacy support)."""
         try:
+            import yaml
+
             with Path(config_path).open(encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except FileNotFoundError:
             return {}
+
+    def _initialize_client_from_settings(self, settings: "Settings") -> OpenAI:
+        """Initialize OpenAI client from Pydantic settings."""
+        api_key = settings.openai_api_key
+        base_url = settings.openai_base_url or "https://api.openai.com/v1"
+
+        print("🔧 Initializing LLM client...")
+        print(f"   API key available: {'***SET***' if api_key else 'NOT_SET'}")
+        print(f"   Base URL: {base_url}")
+
+        if not api_key:
+            error_msg = (
+                "OPENAI_API_KEY is required. "
+                "Please set it in your .env file or environment."
+            )
+            print(f"   ❌ {error_msg}")
+            raise ValueError(error_msg)
+
+        print("   ✅ LLM client initialized successfully")
+        return OpenAI(api_key=api_key, base_url=base_url)
 
     def _initialize_client(self) -> OpenAI:
         """Initialize OpenAI client with API key and base URL."""
@@ -68,6 +125,23 @@ class LLMClient:
             print(f"   ❌ {error_msg}")
             raise ValueError(error_msg)
 
+    def _get_prompt(self, prompt_name: str) -> str:
+        """Get prompt by name from either new settings or legacy prompt loader."""
+        if hasattr(self, "prompts") and self.prompts:
+            # New way: from Pydantic settings
+            prompt_config = self.prompts.get(prompt_name, {})
+            prompt_text = prompt_config.get("prompt", "")
+            if not isinstance(prompt_text, str):
+                raise ValueError(f"Prompt '{prompt_name}' must be a string")
+            return prompt_text
+        if hasattr(self, "prompt_loader"):
+            # Legacy way: from prompt loader
+            prompt_text = getattr(self.prompt_loader, f"{prompt_name}_prompt", "")
+            if not isinstance(prompt_text, str):
+                raise ValueError(f"Prompt '{prompt_name}' must be a string")
+            return prompt_text
+        raise ValueError(f"Prompt '{prompt_name}' not found in configuration")
+
     def _make_api_call(self, prompt: str) -> str:
         """Make API call to LLM and return response."""
         try:
@@ -76,7 +150,10 @@ class LLMClient:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a code analysis expert. Always respond with valid JSON.",
+                        "content": (
+                            "You are a code analysis expert. "
+                            "Always respond with valid JSON."
+                        ),
                     },
                     {"role": "user", "content": prompt},
                 ],
@@ -134,7 +211,7 @@ class LLMClient:
             )
 
         files_content = "\n".join(files_summary)
-        prompt = self.prompt_loader.language_detection_prompt.format(
+        prompt = self._get_prompt("language_detection").format(
             files_content=files_content
         )
 
@@ -146,7 +223,7 @@ class LLMClient:
         # Determine language from extension or content
         language = self._guess_language_from_extension(file_data["extension"])
 
-        prompt = self.prompt_loader.single_file_analysis_prompt.format(
+        prompt = self._get_prompt("single_file_analysis").format(
             filename=file_data["name"],
             language=language,
             language_lower=language.lower(),
@@ -192,7 +269,7 @@ Content:
 """
             files_info.append(info)
 
-        prompt = self.prompt_loader.batch_analysis_prompt.format(
+        prompt = self._get_prompt("batch_analysis").format(
             files_info="\n".join(files_info)
         )
 
@@ -226,7 +303,7 @@ Content:
                 if main_purpose:
                     key_findings.append(main_purpose)
 
-        prompt = self.prompt_loader.project_summary_prompt.format(
+        prompt = self._get_prompt("project_summary").format(
             total_files=len(files_data),
             languages=", ".join(languages),
             analysis_summary=json.dumps(analysis_summary, indent=2),

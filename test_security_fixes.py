@@ -3,15 +3,14 @@
 
 import os
 import sys
-import tempfile
-import zipfile
 from pathlib import Path
 
 # Add the app directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent / "app"))
 
 from app.core.config import Settings
-from app.core.security import validate_file_path, sanitize_filename
+from app.core.security import sanitize_filename
+from app.core.security import validate_file_path
 
 
 def test_cors_configuration():
@@ -100,7 +99,7 @@ def test_path_validation():
         "../../../etc/passwd",
         "..\\..\\windows\\system32",
         "%2e%2e%2f%2e%2e%2f",
-        "file\x00.txt"
+        "file\x00.txt",
     ]
 
     for path in dangerous_paths:
@@ -118,7 +117,7 @@ def test_filename_sanitization():
     test_cases = [
         ("normal_file.txt", "normal_file.txt"),
         ("file with spaces.py", "file_with_spaces.py"),
-        ("file<>:\"/\\|?*.txt", "file_________.txt"),
+        ('file<>:"/\\|?*.txt', "file_________.txt"),
         ("CON.txt", "file_CON.txt"),  # Reserved Windows name
         ("very" * 100 + ".txt", None),  # Should be truncated
     ]
@@ -129,7 +128,9 @@ def test_filename_sanitization():
             if expected and sanitized == expected:
                 print(f"   ✅ Correctly sanitized: {original} → {sanitized}")
             elif expected is None and len(sanitized) <= 255:
-                print(f"   ✅ Long filename truncated: {original[:20]}... → {sanitized[:20]}...")
+                print(
+                    f"   ✅ Long filename truncated: {original[:20]}... → {sanitized[:20]}..."
+                )
             else:
                 print(f"   ⚠️  Unexpected result: {original} → {sanitized}")
         except ValueError as e:
@@ -146,8 +147,12 @@ def test_security_middleware():
 
     # Test security settings
     print(f"   Security headers enabled: {settings.security.security_headers_enabled}")
-    print(f"   Rate limit per minute: {settings.security.rate_limit_requests_per_minute}")
-    print(f"   Upload rate limit: {settings.security.upload_rate_limit_requests_per_minute}")
+    print(
+        f"   Rate limit per minute: {settings.security.rate_limit_requests_per_minute}"
+    )
+    print(
+        f"   Upload rate limit: {settings.security.upload_rate_limit_requests_per_minute}"
+    )
     print(f"   CSP configured: {bool(settings.security.content_security_policy)}")
 
     print("   ✅ Security middleware configuration loaded")
@@ -173,6 +178,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Test failed with error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

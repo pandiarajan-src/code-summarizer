@@ -34,21 +34,30 @@ load_dotenv()
 )
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 def analyze(
-    input_path: str, output: str, config: str, prompts: str, verbose: bool
+    input_path: str,
+    output: str,
+    config: str,  # noqa: ARG001
+    prompts: str,  # noqa: ARG001
+    verbose: bool,
 ) -> None:
     """Analyze source code files or projects and generate markdown summaries.
 
     INPUT_PATH can be a single source file or a zip archive containing a project.
+
+    Note: config and prompts parameters are kept for CLI backward compatibility but
+    are no longer used. Configuration is now managed via Pydantic Settings.
     """
     try:
         if verbose:
             click.echo(f"Analyzing: {input_path}")
 
-        # Initialize components
-        file_processor = FileProcessor(config_path=config)
-        llm_client = LLMClient(config_path=config, prompts_file=prompts)
-        context_manager = ContextManager(config_path=config)
-        markdown_formatter = MarkdownFormatter(config_path=config)
+        # Initialize components with settings
+        from .core.config import settings
+
+        file_processor = FileProcessor(settings=settings)
+        llm_client = LLMClient(settings=settings)
+        context_manager = ContextManager(settings=settings)
+        markdown_formatter = MarkdownFormatter(settings=settings)
 
         # Process input
         files_data = file_processor.process_input(input_path)

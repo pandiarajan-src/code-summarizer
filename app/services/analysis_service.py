@@ -43,20 +43,11 @@ class AnalysisService:
             # Create a legacy config dict for existing modules
             legacy_config = self.settings.to_legacy_config()
 
-            # Initialize components with config
-            self.file_processor = FileProcessor(
-                config_path=self.settings.config_file_path
-            )
-            self.llm_client = LLMClient(
-                config_path=self.settings.config_file_path,
-                prompts_file=self.settings.prompts_file_path,
-            )
-            self.context_manager = ContextManager(
-                config_path=self.settings.config_file_path
-            )
-            self.markdown_formatter = MarkdownFormatter(
-                config_path=self.settings.config_file_path
-            )
+            # Initialize components with settings
+            self.file_processor = FileProcessor(settings=self.settings)
+            self.llm_client = LLMClient(settings=self.settings)
+            self.context_manager = ContextManager(settings=self.settings)
+            self.markdown_formatter = MarkdownFormatter(settings=self.settings)
 
             print("✅ Analysis components initialized successfully")
             print(

@@ -2,7 +2,7 @@
 # Runs both FastAPI backend (port 8000) and Frontend (port 80) in one container
 
 # Multi-stage build for optimized final image
-FROM python:3.13-slim AS python-base
+FROM python:3.12-slim AS python-base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

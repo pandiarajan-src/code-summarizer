@@ -1,31 +1,49 @@
 """Context management for handling token limits and batching files."""
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 import tiktoken
-import yaml
+
+if TYPE_CHECKING:
+    from app.core.config import Settings
 
 
 class ContextManager:
     """Manages token limits and batches files for LLM processing."""
 
-    def __init__(self, config_path: str = "config.yaml") -> None:
+    def __init__(
+        self, config_path: str | None = None, *, settings: "Settings | None" = None
+    ) -> None:
         """Initialize context manager with configuration.
 
         Args:
-            config_path: Path to configuration YAML file.
+            config_path: Legacy config path for backward compatibility
+                (positional for backward compat)
+            settings: Pydantic Settings object (preferred, keyword-only)
         """
-        self.config = self._load_config(config_path)
+        if settings:
+            self.model_name = settings.llm_model
+            self.max_context_tokens = settings.llm_max_context_tokens
+            self.response_tokens = settings.llm_max_tokens
+        elif config_path:
+            # Legacy support
+            self.config = self._load_legacy_config(config_path)
+            llm_config = self.config.get("llm", {})
+            self.model_name = llm_config.get("model", "gpt-4o")
+            self.max_context_tokens = llm_config.get("max_context_tokens", 128000)
+            self.response_tokens = llm_config.get("max_tokens", 4000)
+        else:
+            # Use defaults from Settings if no config provided
+            from app.core.config import settings as default_settings
 
-        # Get model configuration
-        llm_config = self.config.get("llm", {})
-        self.model_name = llm_config.get("model", "gpt-4o")
-        self.max_context_tokens = llm_config.get("max_context_tokens", 128000)
+            self.model_name = default_settings.llm_model
+            self.max_context_tokens = default_settings.llm_max_context_tokens
+            self.response_tokens = default_settings.llm_max_tokens
 
         # Reserve tokens for prompt template and response
         self.prompt_overhead = 2000
-        self.response_tokens = llm_config.get("max_tokens", 4000)
         self.available_tokens = (
             self.max_context_tokens - self.prompt_overhead - self.response_tokens
         )
@@ -37,9 +55,11 @@ class ContextManager:
             # Fallback to cl100k_base for unknown models
             self.tokenizer = tiktoken.get_encoding("cl100k_base")
 
-    def _load_config(self, config_path: str) -> dict[str, Any]:
-        """Load configuration from YAML file."""
+    def _load_legacy_config(self, config_path: str) -> dict[str, Any]:
+        """Load configuration from YAML file (legacy support)."""
         try:
+            import yaml
+
             with Path(config_path).open(encoding="utf-8") as f:
                 config_data = yaml.safe_load(f)
                 if not isinstance(config_data, dict):
