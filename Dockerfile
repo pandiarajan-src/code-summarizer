@@ -35,7 +35,7 @@ RUN uv sync --frozen --no-dev
 # Copy application code
 COPY app/ ./app/
 COPY config.yaml prompts.yaml ./
-COPY .env.example ./.env
+COPY .env ./.env
 
 # Copy frontend files
 COPY frontend/ ./frontend/
