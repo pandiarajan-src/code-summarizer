@@ -453,13 +453,24 @@ Provide insights into the overall project structure, purpose, and quality."""
             raise ValueError("port must be between 1 and 65535")
         return v
 
+    @field_validator("container_mode", mode="before")
+    @classmethod
+    def validate_container_mode(cls, v) -> bool:
+        """Validate and convert container_mode to boolean."""
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            # Handle string values from environment variables
+            return v.lower() in ("true", "1", "yes", "on", "single", "multi")
+        return bool(v)
+
     @field_validator("host")
     @classmethod
     def validate_host(cls, v: str, _info: ValidationInfo) -> str:
         """Validate and auto-configure host based on environment."""
         # Check if running in container
         in_container = (
-            os.environ.get("CONTAINER_MODE") == "true"
+            os.environ.get("CONTAINER_MODE") in ("true", "single", "multi")
             or os.environ.get("DOCKER_CONTAINER") == "true"
             or Path("/.dockerenv").exists()
         )
