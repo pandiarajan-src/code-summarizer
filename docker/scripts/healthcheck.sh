@@ -4,8 +4,10 @@
 
 set -e
 
-# Default values
-API_URL="${API_URL:-http://localhost:8000}"
+# Default values - use environment variables for port configuration
+API_PORT="${API_PORT:-8000}"
+API_HOST="${API_HOST:-localhost}"
+API_URL="${API_URL:-http://${API_HOST}:${API_PORT}}"
 FRONTEND_URL="${FRONTEND_URL:-http://localhost}"
 TIMEOUT="${TIMEOUT:-10}"
 
@@ -114,7 +116,7 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "Usage: $0 [api|frontend|all] [options]"
     echo ""
     echo "Options:"
-    echo "  --api-url URL      API base URL (default: http://localhost:8000)"
+    echo "  --api-url URL      API base URL (default: http://\$API_HOST:\$API_PORT or http://localhost:8000)"
     echo "  --frontend-url URL Frontend URL (default: http://localhost)"
     echo "  --timeout SECONDS  Request timeout (default: 10)"
     echo ""

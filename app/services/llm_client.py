@@ -64,6 +64,8 @@ class OpenAIClientPool:
 class LLMClient:
     """Client for interacting with Large Language Models via OpenAI-compatible APIs."""
 
+    prompts: dict[str, Any]
+
     def __init__(
         self,
         config_path: str | None = None,
@@ -83,7 +85,11 @@ class LLMClient:
         if settings:
             self.settings = settings
             self.client = self._initialize_client_from_settings(settings)
-            self.prompts = settings.prompts
+            # Load prompts from prompts.yaml via PromptLoader
+            from ..utils.prompt_loader import PromptLoader
+
+            self.prompt_loader = PromptLoader(settings.prompts_file_path)
+            self.prompts = {}
             self.model = settings.llm_model
             self.max_tokens = settings.llm_max_tokens
             self.temperature = settings.llm_temperature
@@ -112,7 +118,11 @@ class LLMClient:
 
             self.settings = default_settings
             self.client = self._initialize_client_from_settings(default_settings)
-            self.prompts = default_settings.prompts
+            # Load prompts from prompts.yaml via PromptLoader
+            from ..utils.prompt_loader import PromptLoader
+
+            self.prompt_loader = PromptLoader(default_settings.prompts_file_path)
+            self.prompts = {}
             self.model = default_settings.llm_model
             self.max_tokens = default_settings.llm_max_tokens
             self.temperature = default_settings.llm_temperature
@@ -175,22 +185,19 @@ class LLMClient:
             print(f"   ❌ {error_msg}")
             raise ValueError(error_msg)
 
-    def _get_prompt(self, prompt_name: str) -> str:
-        """Get prompt by name from either new settings or legacy prompt loader."""
-        if hasattr(self, "prompts") and self.prompts:
-            # New way: from Pydantic settings
-            prompt_config = self.prompts.get(prompt_name, {})
-            prompt_text = prompt_config.get("prompt", "")
-            if not isinstance(prompt_text, str):
-                raise ValueError(f"Prompt '{prompt_name}' must be a string")
-            return prompt_text
+    def _get_prompt(
+        self, prompt_name: str, custom_prompts: dict[str, str] | None = None
+    ) -> str:
+        """Get prompt by name from custom prompts or prompt loader."""
+        # Use custom prompt if provided
+        if custom_prompts and prompt_name in custom_prompts:
+            return custom_prompts[prompt_name]
+
+        # Fallback to default prompts from prompt loader
         if hasattr(self, "prompt_loader"):
-            # Legacy way: from prompt loader
-            prompt_text = getattr(self.prompt_loader, f"{prompt_name}_prompt", "")
-            if not isinstance(prompt_text, str):
-                raise ValueError(f"Prompt '{prompt_name}' must be a string")
-            return prompt_text
-        raise ValueError(f"Prompt '{prompt_name}' not found in configuration")
+            # Use PromptLoader to get prompts from prompts.yaml
+            return self.prompt_loader.get_prompt(prompt_name)
+        raise ValueError("Prompt loader not initialized")
 
     def _make_api_call(self, prompt: str) -> str:
         """Make API call to LLM and return response."""
@@ -251,7 +258,11 @@ class LLMClient:
                 f"Could not parse JSON from LLM response: {response[:200]}..."
             )
 
-    def detect_languages(self, files_data: list[dict[str, Any]]) -> dict[str, Any]:
+    def detect_languages(
+        self,
+        files_data: list[dict[str, Any]],
+        custom_prompts: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """Detect programming languages in files."""
         # Create summary of files for language detection
         files_summary = []
@@ -261,19 +272,21 @@ class LLMClient:
             )
 
         files_content = "\n".join(files_summary)
-        prompt = self._get_prompt("language_detection").format(
+        prompt = self._get_prompt("language_detection", custom_prompts).format(
             files_content=files_content
         )
 
         response = self._make_api_call(prompt)
         return self._parse_json_response(response)
 
-    def analyze_single_file(self, file_data: dict[str, Any]) -> dict[str, Any]:
+    def analyze_single_file(
+        self, file_data: dict[str, Any], custom_prompts: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         """Analyze a single source code file."""
         # Determine language from extension or content
         language = self._guess_language_from_extension(file_data["extension"])
 
-        prompt = self._get_prompt("single_file_analysis").format(
+        prompt = self._get_prompt("single_file_analysis", custom_prompts).format(
             filename=file_data["name"],
             language=language,
             language_lower=language.lower(),
@@ -291,7 +304,11 @@ class LLMClient:
 
         return result
 
-    def analyze_batch(self, batch_files: list[dict[str, Any]]) -> dict[str, Any]:
+    def analyze_batch(
+        self,
+        batch_files: list[dict[str, Any]],
+        custom_prompts: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """Analyze a batch of files together."""
         if len(batch_files) == 1:
             # Single file analysis
@@ -301,7 +318,7 @@ class LLMClient:
                     "patterns": [],
                     "architecture": "N/A",
                 },
-                "files": [self.analyze_single_file(batch_files[0])],
+                "files": [self.analyze_single_file(batch_files[0], custom_prompts)],
                 "relationships": [],
             }
 
@@ -319,7 +336,7 @@ Content:
 """
             files_info.append(info)
 
-        prompt = self._get_prompt("batch_analysis").format(
+        prompt = self._get_prompt("batch_analysis", custom_prompts).format(
             files_info="\n".join(files_info)
         )
 
@@ -327,7 +344,10 @@ Content:
         return self._parse_json_response(response)
 
     def generate_project_summary(
-        self, files_data: list[dict[str, Any]], analysis_results: list[dict[str, Any]]
+        self,
+        files_data: list[dict[str, Any]],
+        analysis_results: list[dict[str, Any]],
+        custom_prompts: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Generate overall project summary."""
         # Extract languages and totals
@@ -353,7 +373,7 @@ Content:
                 if main_purpose:
                     key_findings.append(main_purpose)
 
-        prompt = self._get_prompt("project_summary").format(
+        prompt = self._get_prompt("project_summary", custom_prompts).format(
             total_files=len(files_data),
             languages=", ".join(languages),
             analysis_summary=json.dumps(analysis_summary, indent=2),

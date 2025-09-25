@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Configuration Test</title>
+    <script>
+        // Set environment variables for testing
+        window.API_PORT = '9000';
+        window.API_BASE_URL = 'http://test.example.com:9000';
+    </script>
+    <script src="frontend/config.js"></script>
+</head>
+<body>
+    <h1>Frontend Configuration Test</h1>
+    <div id="results"></div>
+
+    <script>
+        function test() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h2>Configuration Test Results:</h2>';
+
+            // Test that config.js loaded
+            if (window.FRONTEND_CONFIG) {
+                results.innerHTML += '<p>✅ FRONTEND_CONFIG loaded successfully</p>';
+
+                // Test API URL configuration
+                const apiUrl = window.FRONTEND_CONFIG.api.baseUrl;
+                results.innerHTML += `<p>API Base URL: ${apiUrl}</p>`;
+
+                if (apiUrl.includes('test.example.com:9000')) {
+                    results.innerHTML += '<p>✅ Environment variable API_BASE_URL is being used</p>';
+                } else {
+                    results.innerHTML += '<p>⚠️ Default API URL is being used</p>';
+                }
+            } else {
+                results.innerHTML += '<p>❌ FRONTEND_CONFIG not loaded</p>';
+            }
+        }
+
+        // Run test when page loads
+        window.onload = test;
+    </script>
+</body>
+</html>

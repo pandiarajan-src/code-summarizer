@@ -30,7 +30,7 @@ RUN uv sync --frozen --no-dev
 # Copy application code
 COPY app/ ./app/
 COPY config.yaml prompts.yaml ./
-COPY .env.example ./.env
+COPY .env ./.env
 
 # Create home directory and set permissions
 RUN mkdir -p /home/appuser/.cache && \
@@ -42,9 +42,16 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Health check
+# Health check - use environment variable or default
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+    CMD sh -c 'curl -f http://localhost:${PORT:-8000}/api/health || exit 1'
+
+# Create startup script
+RUN echo '#!/bin/sh\n\
+HOST=${HOST:-0.0.0.0}\n\
+PORT=${PORT:-8000}\n\
+exec /app/.venv/bin/uvicorn app.api_main:app --host "$HOST" --port "$PORT"' > /usr/local/bin/start-api.sh && \
+    chmod +x /usr/local/bin/start-api.sh
 
 # Start the API server
-CMD ["/app/.venv/bin/uvicorn", "app.api_main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/usr/local/bin/start-api.sh"]

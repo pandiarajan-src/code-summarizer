@@ -89,6 +89,7 @@ class AnalysisService:
         self,
         files: list[FileContent],
         config_overrides: ConfigOverrides | None = None,
+        custom_prompts: dict[str, str] | None = None,
         output_format: str = "json",
         verbose: bool = False,
     ) -> AnalysisResponse:
@@ -110,12 +111,12 @@ class AnalysisService:
             # Create batches and analyze them
             batches = self.context_manager.create_batches(files_data)
             batch_results, total_tokens = await self._analyze_batches(
-                batches, analysis_id, verbose
+                batches, analysis_id, verbose, custom_prompts
             )
 
             # Generate project summary and markdown output
             project_summary = await self._generate_project_summary(
-                files_data, batch_results, verbose
+                files_data, batch_results, verbose, custom_prompts
             )
             markdown_output = await self._generate_markdown_output(
                 output_format, files_data, batches, batch_results, verbose
@@ -157,6 +158,7 @@ class AnalysisService:
         self,
         paths: list[str],
         config_overrides: ConfigOverrides | None = None,
+        custom_prompts: dict[str, str] | None = None,
         output_format: str = "json",
         verbose: bool = False,
         recursive: bool = True,
@@ -190,6 +192,7 @@ class AnalysisService:
             return await self.analyze_files(
                 files=file_contents,
                 config_overrides=config_overrides,
+                custom_prompts=custom_prompts,
                 output_format=output_format,
                 verbose=verbose,
             )
@@ -284,7 +287,11 @@ class AnalysisService:
         return self.settings.allowed_file_types
 
     async def _analyze_batches(
-        self, batches: list[Any], analysis_id: str, verbose: bool
+        self,
+        batches: list[Any],
+        analysis_id: str,
+        verbose: bool,
+        custom_prompts: dict[str, str] | None = None,
     ) -> tuple[list[BatchAnalysisResult], int]:
         """Analyze batches and return results with total tokens."""
         if verbose:
@@ -301,7 +308,7 @@ class AnalysisService:
 
             batch_start_time = time.time()
             try:
-                result = self.llm_client.analyze_batch(batch)
+                result = self.llm_client.analyze_batch(batch, custom_prompts)
                 batch_processing_time = time.time() - batch_start_time
 
                 # Cache the full result for markdown generation
@@ -344,6 +351,7 @@ class AnalysisService:
         files_data: list[Any],
         batch_results: list[BatchAnalysisResult],
         verbose: bool,
+        custom_prompts: dict[str, str] | None = None,
     ) -> ProjectSummary | None:
         """Generate project summary if multiple files."""
         if len(files_data) <= 1:
@@ -351,7 +359,7 @@ class AnalysisService:
 
         try:
             summary_result = self.llm_client.generate_project_summary(
-                files_data, [br.batch_summary for br in batch_results]
+                files_data, [br.batch_summary for br in batch_results], custom_prompts
             )
             return ProjectSummary(
                 total_files=len(files_data),

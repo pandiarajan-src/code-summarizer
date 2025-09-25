@@ -57,6 +57,7 @@ async def analyze_files(
         result = await analysis_service.analyze_files(
             files=request.files,
             config_overrides=request.config_overrides,
+            custom_prompts=request.custom_prompts,
             output_format=request.output_format,
             verbose=request.verbose,
         )
@@ -76,6 +77,9 @@ async def analyze_uploaded_files(
     files: list[UploadFile] = File(..., description="Files to analyze"),
     config_overrides: str | None = Form(
         None, description="JSON string of config overrides"
+    ),
+    custom_prompts: str | None = Form(
+        None, description="JSON string of custom prompts"
     ),
     output_format: str = Form(
         "json", description="Output format: json, markdown, or both"
@@ -116,10 +120,26 @@ async def analyze_uploaded_files(
                     detail=f"Invalid config overrides JSON: {str(e)}",
                 )
 
+        # Parse custom prompts if provided
+        parsed_custom_prompts = None
+        if custom_prompts and custom_prompts.strip():
+            import json
+
+            try:
+                parsed_custom_prompts = json.loads(custom_prompts)
+                if not isinstance(parsed_custom_prompts, dict):
+                    raise ValueError("Custom prompts must be a dictionary")
+            except (json.JSONDecodeError, ValueError) as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid custom prompts JSON: {str(e)}",
+                )
+
         # Analyze files
         result = await analysis_service.analyze_files(
             files=file_contents,
             config_overrides=parsed_config_overrides,
+            custom_prompts=parsed_custom_prompts,
             output_format=output_format,
             verbose=verbose,
         )
@@ -150,6 +170,7 @@ async def analyze_from_paths(
         result = await analysis_service.analyze_from_paths(
             paths=request.paths,
             config_overrides=request.config_overrides,
+            custom_prompts=request.custom_prompts,
             output_format=request.output_format,
             verbose=request.verbose,
             recursive=request.recursive,
@@ -183,6 +204,7 @@ async def analyze_batch(
         result = await analysis_service.analyze_files(
             files=request.files,
             config_overrides=request.config_overrides,
+            custom_prompts=request.custom_prompts,
             output_format=request.output_format,
             verbose=request.verbose,
         )
@@ -221,6 +243,9 @@ async def analyze_batch_uploaded_files(
     config_overrides: str | None = Form(
         None, description="JSON string of config overrides"
     ),
+    custom_prompts: str | None = Form(
+        None, description="JSON string of custom prompts"
+    ),
     output_format: str = Form(
         "json", description="Output format: json, markdown, or both"
     ),
@@ -257,10 +282,26 @@ async def analyze_batch_uploaded_files(
                     detail=f"Invalid config overrides JSON: {str(e)}",
                 )
 
+        # Parse custom prompts if provided
+        parsed_custom_prompts = None
+        if custom_prompts and custom_prompts.strip():
+            import json
+
+            try:
+                parsed_custom_prompts = json.loads(custom_prompts)
+                if not isinstance(parsed_custom_prompts, dict):
+                    raise ValueError("Custom prompts must be a dictionary")
+            except (json.JSONDecodeError, ValueError) as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid custom prompts JSON: {str(e)}",
+                )
+
         # Create batch request and analyze
         batch_request = BatchAnalysisRequest(
             files=file_contents,
             config_overrides=parsed_config_overrides,
+            custom_prompts=parsed_custom_prompts,
             output_format=output_format,
             verbose=verbose,
             force_batch=force_batch,
@@ -304,6 +345,37 @@ async def get_analysis_config(
         config["llm"]["api_key"] = "***" if config["llm"]["api_key"] else None
 
     return {"config": config, "description": "Current analysis service configuration"}
+
+
+@router.get("/prompts")
+async def get_default_prompts() -> dict[str, Any]:
+    """Get all default prompts from prompts.yaml."""
+    try:
+        from ...utils.prompt_loader import PromptLoader
+
+        # Load prompts from prompts.yaml
+        prompt_loader = PromptLoader("prompts.yaml")
+
+        # Get all prompts
+        all_prompts = {
+            "language_detection": prompt_loader.get_prompt("language_detection"),
+            "single_file_analysis": prompt_loader.get_prompt("single_file_analysis"),
+            "batch_analysis": prompt_loader.get_prompt("batch_analysis"),
+            "project_summary": prompt_loader.get_prompt("project_summary"),
+        }
+
+        return {
+            "success": True,
+            "prompts": all_prompts,
+            "description": "Default prompts loaded from prompts.yaml",
+            "prompt_count": len(all_prompts),
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load prompts: {str(e)}",
+        )
 
 
 @router.post("/analyze/validate")

@@ -2,7 +2,7 @@
 # Requires: uv (https://github.com/astral-sh/uv)
 
 .DEFAULT_GOAL := help
-.PHONY: help install install-dev clean lint lint-fix format format-check type-check test test-cov run analyze build publish pre-commit docker-help docker-single docker-multi docker-build docker-down docker-logs docker-health docker-clean
+.PHONY: help install install-dev clean lint lint-fix format format-check type-check test test-cov run analyze build publish pre-commit run-api-frontend-local docker-help docker-single docker-multi docker-build docker-down docker-logs docker-health docker-clean
 
 # Colors
 BLUE := \033[36m
@@ -43,6 +43,8 @@ help: ## Show this help message
 	@echo "  make test-api                      # Test all API endpoints"
 	@echo "  make test-api-detailed             # Test API endpoints with detailed results"
 	@echo "  make run-api                       # Start API server"
+	@echo "  make run-api-frontend-local        # Start both API and Frontend locally"
+	@echo "  API_PORT=8001 FRONTEND_PORT=8081 make run-api-frontend-local  # Custom ports"
 	@echo "  make analyze FILE=main.py          # Analyze a specific file"
 
 ## Setup Commands
@@ -158,6 +160,11 @@ endif
 run-api: ## Start the API server
 	@echo "$(BLUE)Starting Code Summarizer API...$(RESET)"
 	PYTHONPATH=app uv run uvicorn app.api_main:app --host 127.0.0.1 --port 8000 --reload
+
+run-api-frontend-local: ## Start both API and Frontend for local development
+	@echo "$(BLUE)Starting Code Summarizer API + Frontend locally...$(RESET)"
+	@echo ""
+	@./scripts/run-local-dev.sh
 
 analyze: ## Analyze a file (use FILE=path/to/file)
 ifndef FILE

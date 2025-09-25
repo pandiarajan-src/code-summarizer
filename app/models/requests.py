@@ -78,10 +78,50 @@ class AnalysisRequest(BaseModel):
     config_overrides: ConfigOverrides | None = Field(
         None, description="Configuration overrides"
     )
+    custom_prompts: dict[str, str] | None = Field(
+        None,
+        description="Custom prompts to use instead of defaults. Keys: language_detection, single_file_analysis, batch_analysis, project_summary",
+    )
     output_format: str = Field(
         default="json", pattern="^(json|markdown|both)$", description="Output format"
     )
     verbose: bool = Field(default=False, description="Enable verbose output")
+
+    @field_validator("custom_prompts")
+    @classmethod
+    def validate_custom_prompts(cls, v: Any) -> Any:
+        """Validate custom prompts structure."""
+        if v is None:
+            return v
+
+        if not isinstance(v, dict):
+            raise ValueError("custom_prompts must be a dictionary")
+
+        # Define valid prompt keys
+        valid_keys = {
+            "language_detection",
+            "single_file_analysis",
+            "batch_analysis",
+            "project_summary",
+        }
+
+        # Check for invalid keys
+        invalid_keys = set(v.keys()) - valid_keys
+        if invalid_keys:
+            raise ValueError(
+                f"Invalid prompt keys: {invalid_keys}. Valid keys: {valid_keys}"
+            )
+
+        # Check that all values are strings
+        for key, value in v.items():
+            if not isinstance(value, str):
+                raise ValueError(f"Prompt '{key}' must be a string")
+            if not value.strip():
+                raise ValueError(f"Prompt '{key}' cannot be empty")
+            if len(value) > 10000:  # Reasonable limit for prompt length
+                raise ValueError(f"Prompt '{key}' too long (max 10,000 characters)")
+
+        return v
 
     @field_validator("files")
     @classmethod
@@ -107,6 +147,10 @@ class BatchAnalysisRequest(BaseModel):
     config_overrides: ConfigOverrides | None = Field(
         None, description="Configuration overrides"
     )
+    custom_prompts: dict[str, str] | None = Field(
+        None,
+        description="Custom prompts to use instead of defaults. Keys: language_detection, single_file_analysis, batch_analysis, project_summary",
+    )
     output_format: str = Field(
         default="json", pattern="^(json|markdown|both)$", description="Output format"
     )
@@ -114,6 +158,42 @@ class BatchAnalysisRequest(BaseModel):
     force_batch: bool = Field(
         default=False, description="Force batch processing even for single files"
     )
+
+    @field_validator("custom_prompts")
+    @classmethod
+    def validate_custom_prompts(cls, v: Any) -> Any:
+        """Validate custom prompts structure."""
+        if v is None:
+            return v
+
+        if not isinstance(v, dict):
+            raise ValueError("custom_prompts must be a dictionary")
+
+        # Define valid prompt keys
+        valid_keys = {
+            "language_detection",
+            "single_file_analysis",
+            "batch_analysis",
+            "project_summary",
+        }
+
+        # Check for invalid keys
+        invalid_keys = set(v.keys()) - valid_keys
+        if invalid_keys:
+            raise ValueError(
+                f"Invalid prompt keys: {invalid_keys}. Valid keys: {valid_keys}"
+            )
+
+        # Check that all values are strings
+        for key, value in v.items():
+            if not isinstance(value, str):
+                raise ValueError(f"Prompt '{key}' must be a string")
+            if not value.strip():
+                raise ValueError(f"Prompt '{key}' cannot be empty")
+            if len(value) > 10000:  # Reasonable limit for prompt length
+                raise ValueError(f"Prompt '{key}' too long (max 10,000 characters)")
+
+        return v
 
     @field_validator("files")
     @classmethod
@@ -139,11 +219,51 @@ class AnalysisFromPathRequest(BaseModel):
     config_overrides: ConfigOverrides | None = Field(
         None, description="Configuration overrides"
     )
+    custom_prompts: dict[str, str] | None = Field(
+        None,
+        description="Custom prompts to use instead of defaults. Keys: language_detection, single_file_analysis, batch_analysis, project_summary",
+    )
     output_format: str = Field(
         default="json", pattern="^(json|markdown|both)$", description="Output format"
     )
     verbose: bool = Field(default=False, description="Enable verbose output")
     recursive: bool = Field(default=True, description="Recursively process directories")
+
+    @field_validator("custom_prompts")
+    @classmethod
+    def validate_custom_prompts(cls, v: Any) -> Any:
+        """Validate custom prompts structure."""
+        if v is None:
+            return v
+
+        if not isinstance(v, dict):
+            raise ValueError("custom_prompts must be a dictionary")
+
+        # Define valid prompt keys
+        valid_keys = {
+            "language_detection",
+            "single_file_analysis",
+            "batch_analysis",
+            "project_summary",
+        }
+
+        # Check for invalid keys
+        invalid_keys = set(v.keys()) - valid_keys
+        if invalid_keys:
+            raise ValueError(
+                f"Invalid prompt keys: {invalid_keys}. Valid keys: {valid_keys}"
+            )
+
+        # Check that all values are strings
+        for key, value in v.items():
+            if not isinstance(value, str):
+                raise ValueError(f"Prompt '{key}' must be a string")
+            if not value.strip():
+                raise ValueError(f"Prompt '{key}' cannot be empty")
+            if len(value) > 10000:  # Reasonable limit for prompt length
+                raise ValueError(f"Prompt '{key}' too long (max 10,000 characters)")
+
+        return v
 
     @field_validator("paths")
     @classmethod

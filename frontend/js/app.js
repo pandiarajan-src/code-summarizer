@@ -54,6 +54,17 @@ class CodeSummarizerApp {
 
         // API version
         this.apiVersion = document.getElementById('apiVersion');
+
+        // Prompt editor elements
+        this.togglePromptEditor = document.getElementById('togglePromptEditor');
+        this.promptEditorContainer = document.getElementById('promptEditorContainer');
+        this.promptTabs = document.querySelectorAll('.prompt-tab');
+        this.promptEditor = document.getElementById('promptEditor');
+        this.promptLabelText = document.getElementById('promptLabelText');
+        this.promptCharCount = document.getElementById('promptCharCount');
+        this.promptStatus = document.getElementById('promptStatus');
+        this.resetPromptBtn = document.getElementById('resetPromptBtn');
+        this.resetAllPromptsBtn = document.getElementById('resetAllPromptsBtn');
     }
 
     bindEvents() {
@@ -84,6 +95,48 @@ class CodeSummarizerApp {
             });
         }
 
+        // Prompt editor events with robust binding
+        const bindToggleEvent = () => {
+            const toggleElement = document.getElementById('togglePromptEditor');
+            if (toggleElement) {
+                toggleElement.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.togglePromptEditorVisibility();
+                });
+            }
+        };
+
+        // Try immediate binding
+        bindToggleEvent();
+
+        // Also add document delegation as fallback
+        document.addEventListener('click', (e) => {
+            if (e.target && (e.target.id === 'togglePromptEditor' || e.target.closest('#togglePromptEditor'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.togglePromptEditorVisibility();
+            }
+        });
+
+        if (this.promptTabs) {
+            this.promptTabs.forEach(tab => {
+                tab.addEventListener('click', (e) => this.switchPromptTab(e.target.dataset.prompt));
+            });
+        }
+
+        if (this.promptEditor) {
+            this.promptEditor.addEventListener('input', () => this.updatePromptStatus());
+        }
+
+        if (this.resetPromptBtn) {
+            this.resetPromptBtn.addEventListener('click', () => this.resetCurrentPrompt());
+        }
+
+        if (this.resetAllPromptsBtn) {
+            this.resetAllPromptsBtn.addEventListener('click', () => this.resetAllPrompts());
+        }
+
         // Keyboard events
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -96,6 +149,9 @@ class CodeSummarizerApp {
         try {
             // Initialize theme
             this.initializeTheme();
+
+            // Initialize prompts
+            await this.initializePrompts();
 
             await this.checkApiHealth();
             this.loadApiVersion();
@@ -179,6 +235,12 @@ class CodeSummarizerApp {
             formData.append('extract_archives', this.extractArchives.checked);
             formData.append('verbose', this.verboseOutput.checked);
             formData.append('output_format', 'markdown');
+
+            // Add custom prompts if any are configured
+            const customPrompts = this.getCustomPrompts();
+            if (customPrompts) {
+                formData.append('custom_prompts', JSON.stringify(customPrompts));
+            }
 
             if (isBatchAnalysis) {
                 formData.append('force_batch', 'true');
@@ -637,6 +699,214 @@ class CodeSummarizerApp {
         } catch (error) {
             console.error('Error in setTheme:', error);
         }
+    }
+
+    // Prompt Management Methods
+    async initializePrompts() {
+        try {
+            // Load default prompts from API
+            await this.loadDefaultPrompts();
+
+            // Initialize current prompt type
+            this.currentPromptType = 'single_file_analysis';
+
+            // Initialize user prompts from localStorage or defaults
+            this.userPrompts = this.loadUserPrompts();
+
+            // Display initial prompt
+            this.displayCurrentPrompt();
+        } catch (error) {
+            console.error('Failed to initialize prompts:', error);
+            this.showError('Failed to load prompts. Using fallback defaults.');
+        }
+    }
+
+    async loadDefaultPrompts() {
+        try {
+            const response = await fetch(`${this.apiConfig.baseUrl}${this.apiConfig.endpoints.prompts}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch prompts: ${response.status}`);
+            }
+            const data = await response.json();
+            this.defaultPrompts = data.prompts;
+        } catch (error) {
+            console.error('Error loading default prompts:', error);
+            // Fallback to empty prompts
+            this.defaultPrompts = {
+                single_file_analysis: 'Default single file analysis prompt not available.',
+                batch_analysis: 'Default batch analysis prompt not available.',
+                language_detection: 'Default language detection prompt not available.',
+                project_summary: 'Default project summary prompt not available.'
+            };
+        }
+    }
+
+    loadUserPrompts() {
+        try {
+            const stored = localStorage.getItem('customPrompts');
+            return stored ? JSON.parse(stored) : {};
+        } catch (error) {
+            console.error('Error loading user prompts from localStorage:', error);
+            return {};
+        }
+    }
+
+    saveUserPrompts() {
+        try {
+            localStorage.setItem('customPrompts', JSON.stringify(this.userPrompts));
+        } catch (error) {
+            console.error('Error saving user prompts to localStorage:', error);
+        }
+    }
+
+    togglePromptEditorVisibility() {
+        // Ensure we have the required elements
+        if (!this.promptEditorContainer) {
+            this.promptEditorContainer = document.getElementById('promptEditorContainer');
+        }
+        if (!this.togglePromptEditor) {
+            this.togglePromptEditor = document.getElementById('togglePromptEditor');
+        }
+
+        if (!this.promptEditorContainer || !this.togglePromptEditor) {
+            console.error('Required elements for prompt editor toggle not found');
+            return;
+        }
+
+        const isVisible = this.promptEditorContainer.style.display !== 'none';
+
+        if (isVisible) {
+            this.promptEditorContainer.style.display = 'none';
+            this.togglePromptEditor.innerHTML = `
+                <span class="toggle-text">Show Prompts</span>
+                <span class="toggle-icon">▼</span>
+            `;
+        } else {
+            this.promptEditorContainer.style.display = 'block';
+            this.togglePromptEditor.innerHTML = `
+                <span class="toggle-text">Hide Prompts</span>
+                <span class="toggle-icon">▲</span>
+            `;
+        }
+    }
+
+    switchPromptTab(promptType) {
+        // Update active tab
+        this.promptTabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.prompt === promptType);
+        });
+
+        // Save current prompt before switching
+        if (this.currentPromptType && this.promptEditor.value.trim()) {
+            this.userPrompts[this.currentPromptType] = this.promptEditor.value;
+            this.saveUserPrompts();
+        }
+
+        // Switch to new prompt type
+        this.currentPromptType = promptType;
+        this.displayCurrentPrompt();
+    }
+
+    displayCurrentPrompt() {
+        if (!this.currentPromptType || !this.defaultPrompts) return;
+
+        // Get current prompt (user custom or default)
+        const currentPrompt = this.userPrompts[this.currentPromptType] ||
+                             this.defaultPrompts[this.currentPromptType] || '';
+
+        // Update UI
+        this.promptEditor.value = currentPrompt;
+        this.updatePromptLabel();
+        this.updatePromptStatus();
+    }
+
+    updatePromptLabel() {
+        const labels = {
+            single_file_analysis: 'Single File Analysis Prompt:',
+            batch_analysis: 'Batch Analysis Prompt:',
+            language_detection: 'Language Detection Prompt:',
+            project_summary: 'Project Summary Prompt:'
+        };
+
+        this.promptLabelText.textContent = labels[this.currentPromptType] || 'Prompt:';
+    }
+
+    updatePromptStatus() {
+        const currentValue = this.promptEditor.value.trim();
+        const defaultValue = this.defaultPrompts[this.currentPromptType] || '';
+
+        // Update character count
+        this.promptCharCount.textContent = currentValue.length;
+
+        // Update status
+        if (!currentValue) {
+            this.promptStatus.textContent = 'Empty';
+            this.promptStatus.className = 'prompt-status empty';
+        } else if (currentValue === defaultValue) {
+            this.promptStatus.textContent = 'Default';
+            this.promptStatus.className = 'prompt-status default';
+        } else {
+            this.promptStatus.textContent = 'Custom';
+            this.promptStatus.className = 'prompt-status custom';
+        }
+
+        // Save to user prompts
+        if (currentValue !== defaultValue) {
+            this.userPrompts[this.currentPromptType] = currentValue;
+            this.saveUserPrompts();
+        } else {
+            // Remove from user prompts if it matches default
+            delete this.userPrompts[this.currentPromptType];
+            this.saveUserPrompts();
+        }
+    }
+
+    resetCurrentPrompt() {
+        if (!this.currentPromptType || !this.defaultPrompts) return;
+
+        const defaultPrompt = this.defaultPrompts[this.currentPromptType] || '';
+        this.promptEditor.value = defaultPrompt;
+
+        // Remove from user customizations
+        delete this.userPrompts[this.currentPromptType];
+        this.saveUserPrompts();
+
+        this.updatePromptStatus();
+    }
+
+    resetAllPrompts() {
+        if (!confirm('Are you sure you want to reset all prompts to defaults? This cannot be undone.')) {
+            return;
+        }
+
+        // Clear all user customizations
+        this.userPrompts = {};
+        this.saveUserPrompts();
+
+        // Redisplay current prompt
+        this.displayCurrentPrompt();
+    }
+
+    getCustomPrompts() {
+        // Return custom prompts for API submission
+        const customPrompts = {};
+
+        // Include current editor content if modified
+        const currentValue = this.promptEditor.value.trim();
+        const defaultValue = this.defaultPrompts[this.currentPromptType] || '';
+
+        if (currentValue && currentValue !== defaultValue) {
+            this.userPrompts[this.currentPromptType] = currentValue;
+        }
+
+        // Only include prompts that differ from defaults
+        for (const [key, value] of Object.entries(this.userPrompts)) {
+            if (value && value.trim() && value !== (this.defaultPrompts[key] || '')) {
+                customPrompts[key] = value;
+            }
+        }
+
+        return Object.keys(customPrompts).length > 0 ? customPrompts : null;
     }
 }
 

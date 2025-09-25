@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Code Summarizer - API Connection Debug</h1>
+    <div id="results"></div>
+
+    <script>
+        const results = document.getElementById('results');
+
+        function addResult(type, title, content) {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+            results.appendChild(div);
+        }
+
+        // Test API configuration
+        function getApiBaseUrl() {
+            const containerMode = window.CONTAINER_MODE || 'development';
+            const hostname = window.location.hostname;
+            const port = window.location.port;
+
+            const configs = {
+                single: window.location.origin,
+                multi: `http://${hostname}:${window.API_PORT || '8000'}`,
+                development: `http://${hostname}:${window.API_PORT || '8000'}`,
+                production: window.API_BASE_URL || window.location.origin
+            };
+
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                const apiPort = window.API_PORT || '8000';
+                return port === '80' || port === '' ?
+                    window.location.origin :
+                    `http://${hostname}:${apiPort}`;
+            } else {
+                const apiPort = window.API_PORT || '8000';
+                return `http://${hostname}:${apiPort}`;
+            }
+        }
+
+        // Display configuration info
+        addResult('info', 'Configuration', `
+Current URL: ${window.location.href}
+Hostname: ${window.location.hostname}
+Port: ${window.location.port}
+Container Mode: ${window.CONTAINER_MODE || 'development'}
+API Port: ${window.API_PORT || '8000'}
+Calculated API Base URL: ${getApiBaseUrl()}
+        `);
+
+        // Test API health endpoint
+        async function testAPI() {
+            const apiBaseUrl = getApiBaseUrl();
+            const healthUrl = `${apiBaseUrl}/api/health`;
+
+            try {
+                addResult('info', 'Testing API Connection', `Connecting to: ${healthUrl}`);
+
+                const response = await fetch(healthUrl);
+                const data = await response.json();
+
+                if (response.ok) {
+                    addResult('success', 'API Connection Successful', JSON.stringify(data, null, 2));
+                } else {
+                    addResult('error', 'API Response Error', `Status: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}`);
+                }
+            } catch (error) {
+                addResult('error', 'API Connection Failed', `Error: ${error.message}\nTried URL: ${healthUrl}`);
+            }
+        }
+
+        // Run tests
+        testAPI();
+    </script>
+</body>
+</html>

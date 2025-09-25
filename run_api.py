@@ -86,9 +86,9 @@ if __name__ == "__main__":
     # Set PYTHONPATH environment variable to include both paths
     os.environ["PYTHONPATH"] = f"{root_path}:{app_path}"
 
-    # Configuration
-    HOST = "0.0.0.0"
-    PORT = 8000
+    # Configuration from environment variables
+    HOST = os.getenv("HOST", "0.0.0.0")
+    PORT = int(os.getenv("PORT", "8000"))
 
     # Check if port is in use and handle it
     if is_port_in_use(HOST, PORT):

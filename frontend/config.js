@@ -4,8 +4,8 @@
 window.FRONTEND_CONFIG = {
     // API Configuration
     api: {
-        // Default development settings
-        baseUrl: 'http://127.0.0.1:8000',
+        // Default development settings - will be overridden by environment detection
+        baseUrl: window.API_BASE_URL || 'http://127.0.0.1:8000',
         timeout: 300000, // 5 minutes
         retryAttempts: 3,
         retryDelay: 1000, // 1 second
@@ -60,9 +60,15 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
     // Development environment
     window.FRONTEND_CONFIG.development.debug = true;
     window.FRONTEND_CONFIG.development.logLevel = 'debug';
+
+    // Use environment-aware API URL for development
+    if (!window.API_BASE_URL) {
+        const port = window.API_PORT || '8000';
+        window.FRONTEND_CONFIG.api.baseUrl = `http://${window.location.hostname}:${port}`;
+    }
 } else {
-    // Production environment
-    window.FRONTEND_CONFIG.api.baseUrl = window.location.origin + '/api';
+    // Production environment - use proxied API or environment variable
+    window.FRONTEND_CONFIG.api.baseUrl = window.API_BASE_URL || (window.location.origin + '/api');
     window.FRONTEND_CONFIG.development.debug = false;
 }
 

@@ -53,6 +53,7 @@ RUN mkdir -p /var/log/supervisor /var/run/supervisor \
     && chown -R appuser:appuser /app /var/log/supervisor /var/run/supervisor \
     && chown -R appuser:appuser /usr/share/nginx/html \
     && chown -R appuser:appuser /var/lib/nginx \
+    && chown -R appuser:appuser /etc/nginx \
     && chmod +x /entrypoint.sh
 
 # Create nginx directories with proper permissions
@@ -70,9 +71,9 @@ USER appuser
 # Expose ports
 EXPOSE 80 8000
 
-# Health check
+# Health check - use dynamic port from environment
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost/health && curl -f http://localhost:8000/api/health || exit 1
+    CMD sh -c 'curl -f http://localhost/health && curl -f http://localhost:${API_PORT:-8000}/api/health || exit 1'
 
 # Set entrypoint
 ENTRYPOINT ["/entrypoint.sh"]

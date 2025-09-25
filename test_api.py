@@ -10,6 +10,7 @@ This script tests all API endpoints exposed by the Code Summarizer API:
 
 import argparse
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -26,7 +27,12 @@ from requests import Response
 class APITester:
     """Comprehensive API testing class for Code Summarizer API."""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = None):
+        if base_url is None:
+            # Get from environment variables
+            host = os.getenv("HOST", "localhost")
+            port = int(os.getenv("PORT", "8000"))
+            base_url = f"http://{host}:{port}"
         self.base_url = base_url
         self.api_base = f"{base_url}/api"
         self.session = requests.Session()
@@ -594,10 +600,15 @@ def main():
     parser = argparse.ArgumentParser(
         description="Comprehensive API testing for Code Summarizer"
     )
+    # Get default URL from environment variables
+    default_host = os.getenv("HOST", "localhost")
+    default_port = os.getenv("PORT", "8000")
+    default_url = f"http://{default_host}:{default_port}"
+
     parser.add_argument(
         "--url",
-        default="http://localhost:8000",
-        help="Base URL for the API (default: http://localhost:8000)",
+        default=default_url,
+        help=f"Base URL for the API (default: {default_url})",
     )
     parser.add_argument(
         "--save-results",
