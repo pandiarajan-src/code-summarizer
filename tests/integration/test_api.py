@@ -1,10 +1,13 @@
 import os
 import tempfile
 import zipfile
-import pytest
 from pathlib import Path
+from unittest.mock import MagicMock
+from unittest.mock import mock_open
+from unittest.mock import patch
+
+import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, mock_open, MagicMock, AsyncMock
 
 
 @pytest.fixture
@@ -12,35 +15,38 @@ def client():
     """Create test client."""
     # Import here to avoid circular imports
     from app.api_main import app
+
     return TestClient(app)
 
 
 @pytest.fixture
 def sample_python_file():
     """Create a sample Python file for testing."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
         f.write("print('Hello, world!')\ndef main():\n    pass\n")
         f.flush()
         yield f.name
-    os.unlink(f.name)
+    Path(f.name).unlink()
 
 
 @pytest.fixture
 def sample_zip_file():
     """Create a sample ZIP file for testing."""
-    with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as zip_f:
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as zip_f:
         zip_file_path = zip_f.name
 
     # Create the zip file separately to ensure it's properly closed
-    with zipfile.ZipFile(zip_file_path, 'w') as zf:
-        zf.writestr('test.py', "print('hello from zip')")
-        zf.writestr('utils.py', "def helper(): return True")
+    with zipfile.ZipFile(zip_file_path, "w") as zf:
+        zf.writestr("test.py", "print('hello from zip')")
+        zf.writestr("utils.py", "def helper(): return True")
 
     yield zip_file_path
-    os.unlink(zip_file_path)
+    Path(zip_file_path).unlink()
 
 
 class TestHealthEndpoints:
+    """Test health check endpoints."""
+
     def test_health_check(self, client):
         """Test basic health check."""
         response = client.get("/api/health")
@@ -102,6 +108,8 @@ class TestHealthEndpoints:
 
 
 class TestAnalysisEndpoints:
+    """Test analysis endpoints."""
+
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     @patch("app.services.llm_client.OpenAI")
     @patch("app.utils.prompt_loader.PromptLoader")
@@ -110,22 +118,22 @@ class TestAnalysisEndpoints:
         # Mock LLM response
         mock_client = mock_openai.return_value
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = '{"purpose": "Test script", "complexity": "low"}'
+        mock_response.choices[
+            0
+        ].message.content = '{"purpose": "Test script", "complexity": "low"}'
         mock_client.chat.completions.create.return_value = mock_response
 
         # Mock prompt loader
-        mock_prompt_loader.return_value.single_file_analysis_prompt = "Analyze: {content}"
+        mock_prompt_loader.return_value.single_file_analysis_prompt = (
+            "Analyze: {content}"
+        )
 
         payload = {
             "files": [
-                {
-                    "filename": "test.py",
-                    "content": "print('hello')",
-                    "file_type": ".py"
-                }
+                {"filename": "test.py", "content": "print('hello')", "file_type": ".py"}
             ],
             "output_format": "json",
-            "verbose": False
+            "verbose": False,
         }
 
         response = client.post("/api/analyze", json=payload)
@@ -155,7 +163,7 @@ class TestAnalysisEndpoints:
         payload = {
             "files": [
                 {"filename": "test.py", "content": "print('hello')"},
-                {"filename": "test.py", "content": "print('world')"}  # Duplicate
+                {"filename": "test.py", "content": "print('world')"},  # Duplicate
             ]
         }
 
@@ -165,7 +173,9 @@ class TestAnalysisEndpoints:
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     @patch("app.services.llm_client.OpenAI")
     @patch("app.utils.prompt_loader.PromptLoader")
-    def test_analyze_upload_endpoint(self, mock_prompt_loader, mock_openai, client, sample_python_file):
+    def test_analyze_upload_endpoint(
+        self, mock_prompt_loader, mock_openai, client, sample_python_file
+    ):
         """Test file upload analysis endpoint."""
         # Mock LLM response
         mock_client = mock_openai.return_value
@@ -174,13 +184,17 @@ class TestAnalysisEndpoints:
         mock_client.chat.completions.create.return_value = mock_response
 
         # Mock prompt loader
-        mock_prompt_loader.return_value.single_file_analysis_prompt = "Analyze: {content}"
+        mock_prompt_loader.return_value.single_file_analysis_prompt = (
+            "Analyze: {content}"
+        )
 
         # Mock config files
-        with patch("builtins.open", mock_open(read_data="llm:\n  model: gpt-4")):
-            with open(sample_python_file, 'rb') as f:
-                files = {"files": ("test.py", f, "text/plain")}
-                response = client.post("/api/analyze/upload", files=files)
+        with (
+            patch("builtins.open", mock_open(read_data="llm:\n  model: gpt-4")),
+            open(sample_python_file, "rb") as f,
+        ):
+            files = {"files": ("test.py", f, "text/plain")}
+            response = client.post("/api/analyze/upload", files=files)
 
         assert response.status_code == 200
         data = response.json()
@@ -191,13 +205,13 @@ class TestAnalysisEndpoints:
         # Create a large file content
         large_content = "a" * (51 * 1024 * 1024)  # 51MB
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write(large_content)
             f.flush()
             temp_file = f.name
 
         try:
-            with open(temp_file, 'rb') as f:
+            with open(temp_file, "rb") as f:
                 files = {"files": ("large.py", f, "text/plain")}
                 response = client.post("/api/analyze/upload", files=files)
 
@@ -205,17 +219,17 @@ class TestAnalysisEndpoints:
             assert response.status_code in [400, 413, 422]
 
         finally:
-            os.unlink(temp_file)
+            Path(temp_file).unlink()
 
     def test_analyze_upload_unsupported_file_type(self, client):
         """Test file upload with unsupported file type."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("This is a text file")
             f.flush()
             temp_file = f.name
 
         try:
-            with open(temp_file, 'rb') as f:
+            with open(temp_file, "rb") as f:
                 files = {"files": ("test.txt", f, "text/plain")}
                 response = client.post("/api/analyze/upload", files=files)
 
@@ -223,12 +237,14 @@ class TestAnalysisEndpoints:
             assert response.status_code in [400, 422]
 
         finally:
-            os.unlink(temp_file)
+            Path(temp_file).unlink()
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     @patch("app.services.llm_client.OpenAI")
     @patch("app.utils.prompt_loader.PromptLoader")
-    def test_analyze_upload_with_config_overrides(self, mock_prompt_loader, mock_openai, client, sample_python_file):
+    def test_analyze_upload_with_config_overrides(
+        self, mock_prompt_loader, mock_openai, client, sample_python_file
+    ):
         """Test file upload analysis with config overrides."""
         # Mock LLM response
         mock_client = mock_openai.return_value
@@ -237,24 +253,28 @@ class TestAnalysisEndpoints:
         mock_client.chat.completions.create.return_value = mock_response
 
         # Mock prompt loader
-        mock_prompt_loader.return_value.single_file_analysis_prompt = "Analyze: {content}"
+        mock_prompt_loader.return_value.single_file_analysis_prompt = (
+            "Analyze: {content}"
+        )
 
         # Mock config files
-        with patch("builtins.open", mock_open(read_data="llm:\n  model: gpt-4")):
-            with open(sample_python_file, 'rb') as f:
-                files = {"files": ("test.py", f, "text/plain")}
-                data = {
-                    "config_overrides": '{"llm_temperature": 0.5}',
-                    "output_format": "markdown",
-                    "verbose": "true"
-                }
-                response = client.post("/api/analyze/upload", files=files, data=data)
+        with (
+            patch("builtins.open", mock_open(read_data="llm:\n  model: gpt-4")),
+            open(sample_python_file, "rb") as f,
+        ):
+            files = {"files": ("test.py", f, "text/plain")}
+            data = {
+                "config_overrides": '{"llm_temperature": 0.5}',
+                "output_format": "markdown",
+                "verbose": "true",
+            }
+            response = client.post("/api/analyze/upload", files=files, data=data)
 
         assert response.status_code == 200
 
     def test_analyze_upload_invalid_config_json(self, client, sample_python_file):
         """Test file upload analysis with invalid config JSON."""
-        with open(sample_python_file, 'rb') as f:
+        with open(sample_python_file, "rb") as f:
             files = {"files": ("test.py", f, "text/plain")}
             data = {"config_overrides": '{"invalid": json}'}
             response = client.post("/api/analyze/upload", files=files, data=data)
@@ -266,12 +286,22 @@ class TestAnalysisEndpoints:
     @patch("app.utils.prompt_loader.PromptLoader")
     @patch("tiktoken.encoding_for_model")
     @patch("zipfile.ZipFile")
-    def test_analyze_zip_upload(self, mock_zipfile, mock_tiktoken, mock_prompt_loader, mock_openai, client, sample_zip_file):
+    def test_analyze_zip_upload(
+        self,
+        mock_zipfile,
+        mock_tiktoken,
+        mock_prompt_loader,
+        mock_openai,
+        client,
+        sample_zip_file,
+    ):
         """Test ZIP file upload analysis."""
         # Mock LLM response
         mock_client = mock_openai.return_value
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = '{"batch_summary": {"main_purpose": "Test scripts"}}'
+        mock_response.choices[
+            0
+        ].message.content = '{"batch_summary": {"main_purpose": "Test scripts"}}'
         mock_client.chat.completions.create.return_value = mock_response
 
         # Mock prompt loader
@@ -284,7 +314,7 @@ class TestAnalysisEndpoints:
 
         # Mock zipfile to return some file entries
         mock_zip_instance = MagicMock()
-        mock_zip_instance.namelist.return_value = ['test.py', 'utils.py']
+        mock_zip_instance.namelist.return_value = ["test.py", "utils.py"]
 
         # Mock file info for size checks
         mock_file_info = MagicMock()
@@ -295,8 +325,8 @@ class TestAnalysisEndpoints:
         def mock_open_file(file_path):
             mock_file_obj = MagicMock()
             content_map = {
-                'test.py': "print('hello from zip')".encode('utf-8'),
-                'utils.py': "def helper(): return True".encode('utf-8')
+                "test.py": b"print('hello from zip')",
+                "utils.py": b"def helper(): return True",
             }
             mock_file_obj.read.return_value = content_map[file_path]
             # Make it work as a context manager
@@ -320,10 +350,12 @@ file_processing:
     - __pycache__
     - .git
 """
-        with patch("builtins.open", mock_open(read_data=config_data)):
-            with open(sample_zip_file, 'rb') as f:
-                files = {"files": ("test.zip", f, "application/zip")}
-                response = client.post("/api/analyze/upload", files=files)
+        with (
+            patch("builtins.open", mock_open(read_data=config_data)),
+            open(sample_zip_file, "rb") as f,
+        ):
+            files = {"files": ("test.zip", f, "application/zip")}
+            response = client.post("/api/analyze/upload", files=files)
 
         # Debug output
         if response.status_code != 200:
@@ -334,10 +366,7 @@ file_processing:
 
     def test_analyze_paths_endpoint_invalid_path(self, client):
         """Test path analysis with invalid path."""
-        payload = {
-            "paths": ["/nonexistent/path"],
-            "recursive": True
-        }
+        payload = {"paths": ["/nonexistent/path"], "recursive": True}
 
         response = client.post("/api/analyze/paths", json=payload)
         assert response.status_code == 400
@@ -350,7 +379,9 @@ file_processing:
         # Mock LLM response
         mock_client = mock_openai.return_value
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = '{"batch_summary": {"main_purpose": "Test scripts"}}'
+        mock_response.choices[
+            0
+        ].message.content = '{"batch_summary": {"main_purpose": "Test scripts"}}'
         mock_client.chat.completions.create.return_value = mock_response
 
         # Mock prompt loader
@@ -361,9 +392,9 @@ file_processing:
             payload = {
                 "files": [
                     {"filename": "test1.py", "content": "print('hello')"},
-                    {"filename": "test2.py", "content": "print('world')"}
+                    {"filename": "test2.py", "content": "print('world')"},
                 ],
-                "force_batch": True
+                "force_batch": True,
             }
 
             response = client.post("/api/analyze/batch", json=payload)
@@ -390,7 +421,7 @@ file_processing:
 
     def test_validate_files_endpoint(self, client, sample_python_file):
         """Test file validation endpoint."""
-        with open(sample_python_file, 'rb') as f:
+        with open(sample_python_file, "rb") as f:
             files = {"files": ("test.py", f, "text/plain")}
             response = client.post("/api/analyze/validate", files=files)
 
@@ -402,6 +433,8 @@ file_processing:
 
 
 class TestErrorHandling:
+    """Test error handling scenarios."""
+
     def test_404_endpoint(self, client):
         """Test 404 error handling."""
         response = client.get("/nonexistent-endpoint")
@@ -412,7 +445,7 @@ class TestErrorHandling:
         response = client.post(
             "/api/analyze",
             content="invalid json",
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
         assert response.status_code == 422
 
@@ -429,14 +462,12 @@ class TestErrorHandling:
         # The application won't start without a valid API key, so this test now
         # verifies that the API gracefully handles analysis service failures
 
-        with patch('app.services.analysis_service.AnalysisService.analyze_files') as mock_analyze:
+        with patch(
+            "app.services.analysis_service.AnalysisService.analyze_files"
+        ) as mock_analyze:
             mock_analyze.side_effect = ValueError("API key validation failed")
 
-            payload = {
-                "files": [
-                    {"filename": "test.py", "content": "print('hello')"}
-                ]
-            }
+            payload = {"files": [{"filename": "test.py", "content": "print('hello')"}]}
 
             response = client.post("/api/analyze", json=payload)
             # Should handle analysis service errors gracefully
@@ -444,6 +475,8 @@ class TestErrorHandling:
 
 
 class TestCORS:
+    """Test CORS functionality."""
+
     def test_cors_options_request(self, client):
         """Test CORS preflight request."""
         response = client.options("/api/analyze")
@@ -452,6 +485,8 @@ class TestCORS:
 
 
 class TestRateLimiting:
+    """Test rate limiting functionality."""
+
     def test_multiple_requests(self, client):
         """Test multiple requests don't cause issues."""
         # Make multiple health check requests

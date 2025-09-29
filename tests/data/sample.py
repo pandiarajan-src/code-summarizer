@@ -1,10 +1,9 @@
 """Sample Python file for testing purposes."""
 
-import os
 import sys
-from typing import List, Optional
 
 GLOBAL_VAR = "This is a global variable"
+
 
 def greet(name: str, greeting: str = "Hello") -> str:
     """Greet a person with a custom message.
@@ -18,16 +17,18 @@ def greet(name: str, greeting: str = "Hello") -> str:
     """
     return f"{greeting}, {name}!"
 
+
 def hello_world() -> None:
     """Print 'Hello, World!' to the console."""
     print("Hello, World!")
+
 
 class Calculator:
     """A simple calculator class for basic arithmetic operations."""
 
     def __init__(self):
         """Initialize the calculator."""
-        self.history: List[str] = []
+        self.history: list[str] = []
 
     def add(self, a: float, b: float) -> float:
         """Add two numbers.
@@ -57,7 +58,7 @@ class Calculator:
         self.history.append(f"{a} - {b} = {result}")
         return result
 
-    def get_history(self) -> List[str]:
+    def get_history(self) -> list[str]:
         """Get the calculation history.
 
         Returns:
@@ -66,7 +67,7 @@ class Calculator:
         return self.history.copy()
 
 
-def main() -> Optional[int]:
+def main() -> int | None:
     """Main function to demonstrate the calculator."""
     calc = Calculator()
 

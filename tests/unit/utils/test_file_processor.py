@@ -9,13 +9,20 @@ from app.utils.file_processor import FileProcessor
 
 
 class TestFileProcessor:
-    @patch("pathlib.Path.open", mock_open(read_data="file_processing:\n  supported_extensions: ['.py', '.js']\n  exclude_patterns: ['__pycache__']"))
+    """Test file processor functionality."""
+
+    @patch(
+        "pathlib.Path.open",
+        mock_open(
+            read_data="file_processing:\n  supported_extensions: ['.py', '.js']\n  exclude_patterns: ['__pycache__']"
+        ),
+    )
     def test_init_with_config(self):
         """Test initialization with configuration file."""
         processor = FileProcessor("test_config.yaml")
 
-        assert processor.supported_extensions == ['.py', '.js']
-        assert processor.exclude_patterns == ['__pycache__']
+        assert processor.supported_extensions == [".py", ".js"]
+        assert processor.exclude_patterns == ["__pycache__"]
 
     @patch("pathlib.Path.open", side_effect=FileNotFoundError)
     def test_init_without_config(self, mock_open):
@@ -28,7 +35,7 @@ class TestFileProcessor:
     def test_is_supported_file(self):
         """Test supported file detection."""
         processor = FileProcessor.__new__(FileProcessor)
-        processor.supported_extensions = ['.py', '.js', '.ts']
+        processor.supported_extensions = [".py", ".js", ".ts"]
 
         assert processor._is_supported_file("test.py") is True
         assert processor._is_supported_file("test.JS") is True  # Case insensitive
@@ -37,7 +44,7 @@ class TestFileProcessor:
     def test_should_exclude(self):
         """Test exclude pattern matching."""
         processor = FileProcessor.__new__(FileProcessor)
-        processor.exclude_patterns = ['__pycache__', '*.pyc', 'node_modules']
+        processor.exclude_patterns = ["__pycache__", "*.pyc", "node_modules"]
 
         assert processor._should_exclude("/path/__pycache__/file.py") is True
         assert processor._should_exclude("/path/file.pyc") is True
@@ -60,7 +67,7 @@ class TestFileProcessor:
         # Mock first encoding to fail, second to succeed
         mock_open_path.side_effect = [
             UnicodeDecodeError("utf-8", b"", 0, 1, "invalid"),
-            mock_open(read_data="content with special chars")()
+            mock_open(read_data="content with special chars")(),
         ]
 
         content = processor._read_file_content("test.py")
@@ -69,24 +76,25 @@ class TestFileProcessor:
     def test_extract_zip_success(self):
         """Test successful zip extraction."""
         # Create a temporary zip file
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_zip:
-            with zipfile.ZipFile(temp_zip.name, 'w') as zf:
-                zf.writestr('test.py', 'print("hello")')
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as temp_zip:
+            with zipfile.ZipFile(temp_zip.name, "w") as zf:
+                zf.writestr("test.py", 'print("hello")')
 
         processor = FileProcessor.__new__(FileProcessor)
 
         try:
             temp_dir = processor._extract_zip(temp_zip.name)
             assert Path(temp_dir).exists()
-            assert (Path(temp_dir) / 'test.py').exists()
+            assert (Path(temp_dir) / "test.py").exists()
 
             # Read extracted file
-            content = (Path(temp_dir) / 'test.py').read_text()
+            content = (Path(temp_dir) / "test.py").read_text()
             assert content == 'print("hello")'
 
         finally:
             # Cleanup
             import shutil
+
             if Path(temp_dir).exists():
                 shutil.rmtree(temp_dir, ignore_errors=True)
             Path(temp_zip.name).unlink()
@@ -123,8 +131,8 @@ class TestFileProcessor:
                 file_path.write_text("test content")
 
             processor = FileProcessor.__new__(FileProcessor)
-            processor.supported_extensions = ['.py', '.js']
-            processor.exclude_patterns = ['__pycache__', '*.pyc']
+            processor.supported_extensions = [".py", ".js"]
+            processor.exclude_patterns = ["__pycache__", "*.pyc"]
 
             files = processor._scan_directory(temp_dir)
 
@@ -161,12 +169,12 @@ class TestFileProcessor:
 
     def test_process_input_single_file(self):
         """Test processing single file input."""
-        with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as temp_file:
             temp_file.write(b"print('hello')")
             temp_file.flush()
 
             processor = FileProcessor.__new__(FileProcessor)
-            processor.supported_extensions = ['.py']
+            processor.supported_extensions = [".py"]
             processor.exclude_patterns = []
 
             try:
@@ -180,9 +188,9 @@ class TestFileProcessor:
 
     def test_process_input_unsupported_file(self):
         """Test processing unsupported file type."""
-        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as temp_file:
             processor = FileProcessor.__new__(FileProcessor)
-            processor.supported_extensions = ['.py']
+            processor.supported_extensions = [".py"]
 
             try:
                 with pytest.raises(Exception, match="Unsupported file type"):
@@ -199,7 +207,7 @@ class TestFileProcessor:
             py_file.write_text("print('hello')")
 
             processor = FileProcessor.__new__(FileProcessor)
-            processor.supported_extensions = ['.py']
+            processor.supported_extensions = [".py"]
             processor.exclude_patterns = []
 
             files_data = processor.process_input(temp_dir)
@@ -211,9 +219,11 @@ class TestFileProcessor:
         """Test processing empty directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
             processor = FileProcessor.__new__(FileProcessor)
-            processor.supported_extensions = ['.py']
+            processor.supported_extensions = [".py"]
 
-            with pytest.raises(Exception, match="No supported code files found in directory"):
+            with pytest.raises(
+                Exception, match="No supported code files found in directory"
+            ):
                 processor.process_input(temp_dir)
 
     def test_process_input_nonexistent_path(self):
@@ -226,13 +236,13 @@ class TestFileProcessor:
     def test_process_zip_file(self):
         """Test processing zip file."""
         # Create temporary zip with Python file
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_zip:
-            with zipfile.ZipFile(temp_zip.name, 'w') as zf:
-                zf.writestr('src/main.py', 'print("hello from zip")')
-                zf.writestr('README.txt', 'This is a readme')
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as temp_zip:
+            with zipfile.ZipFile(temp_zip.name, "w") as zf:
+                zf.writestr("src/main.py", 'print("hello from zip")')
+                zf.writestr("README.txt", "This is a readme")
 
         processor = FileProcessor.__new__(FileProcessor)
-        processor.supported_extensions = ['.py']
+        processor.supported_extensions = [".py"]
         processor.exclude_patterns = []
 
         try:
@@ -250,24 +260,9 @@ class TestFileProcessor:
         processor = FileProcessor.__new__(FileProcessor)
 
         files_data = [
-            {
-                "name": "main.py",
-                "extension": ".py",
-                "lines": 50,
-                "size": 1000
-            },
-            {
-                "name": "script.js",
-                "extension": ".js",
-                "lines": 30,
-                "size": 800
-            },
-            {
-                "name": "utils.py",
-                "extension": ".py",
-                "lines": 20,
-                "size": 500
-            }
+            {"name": "main.py", "extension": ".py", "lines": 50, "size": 1000},
+            {"name": "script.js", "extension": ".js", "lines": 30, "size": 800},
+            {"name": "utils.py", "extension": ".py", "lines": 20, "size": 500},
         ]
 
         project_info = processor.get_project_info(files_data)

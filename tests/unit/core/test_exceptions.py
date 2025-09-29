@@ -1,27 +1,31 @@
-import pytest
-from fastapi import HTTPException, status
-from pydantic import ValidationError
 from unittest.mock import MagicMock
-from app.core.exceptions import (
-    CodeSummarizerException,
-    AnalysisError,
-    FileProcessingError,
-    ConfigurationError,
-    LLMServiceError,
-    FileTooLargeError,
-    UnsupportedFileTypeError,
-    TooManyFilesError,
-    code_summarizer_exception_handler,
-    validation_exception_handler,
-    http_exception_handler,
-    general_exception_handler,
-)
+
+import pytest
+from app.core.exceptions import AnalysisError
+from app.core.exceptions import CodeSummarizerException
+from app.core.exceptions import ConfigurationError
+from app.core.exceptions import FileProcessingError
+from app.core.exceptions import FileTooLargeError
+from app.core.exceptions import LLMServiceError
+from app.core.exceptions import TooManyFilesError
+from app.core.exceptions import UnsupportedFileTypeError
+from app.core.exceptions import code_summarizer_exception_handler
+from app.core.exceptions import general_exception_handler
+from app.core.exceptions import http_exception_handler
+from app.core.exceptions import validation_exception_handler
+from fastapi import HTTPException
+from fastapi import status
+from pydantic import ValidationError
 
 
 class TestCustomExceptions:
+    """Test custom exceptions."""
+
     def test_code_summarizer_exception(self):
         """Test base CodeSummarizerException."""
-        exc = CodeSummarizerException("Test error", status.HTTP_400_BAD_REQUEST, {"key": "value"})
+        exc = CodeSummarizerException(
+            "Test error", status.HTTP_400_BAD_REQUEST, {"key": "value"}
+        )
 
         assert exc.message == "Test error"
         assert exc.status_code == status.HTTP_400_BAD_REQUEST
@@ -91,6 +95,8 @@ class TestCustomExceptions:
 
 
 class TestExceptionHandlers:
+    """Test exception handlers."""
+
     @pytest.mark.asyncio
     async def test_code_summarizer_exception_handler(self):
         """Test CodeSummarizerException handler."""
@@ -99,7 +105,9 @@ class TestExceptionHandlers:
         request.method = "GET"
         request.state.request_id = "test-123"
 
-        exc = CodeSummarizerException("Test error", status.HTTP_400_BAD_REQUEST, {"key": "value"})
+        exc = CodeSummarizerException(
+            "Test error", status.HTTP_400_BAD_REQUEST, {"key": "value"}
+        )
 
         response = await code_summarizer_exception_handler(request, exc)
 

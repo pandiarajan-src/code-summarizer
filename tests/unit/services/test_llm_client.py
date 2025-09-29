@@ -1,15 +1,20 @@
 """Unit tests for LLMClient class."""
 
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock
+from unittest.mock import mock_open
+from unittest.mock import patch
 
 import pytest
-
 from app.services.llm_client import LLMClient
 
 
 class TestLLMClient:
     """Test suite for LLM client functionality."""
-    @patch("pathlib.Path.open", mock_open(read_data="llm:\n  model: gpt-4\n  max_tokens: 2000"))
+
+    @patch(
+        "pathlib.Path.open",
+        mock_open(read_data="llm:\n  model: gpt-4\n  max_tokens: 2000"),
+    )
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
     @patch("app.utils.prompt_loader.PromptLoader")
     def test_init_with_config(self, mock_prompt_loader_class):
@@ -55,7 +60,9 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"result": "success"}'
 
-        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
+        with patch(
+            "app.services.llm_client.OpenAIClientPool.get_client"
+        ) as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -73,7 +80,9 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = None
 
-        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
+        with patch(
+            "app.services.llm_client.OpenAIClientPool.get_client"
+        ) as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -85,7 +94,9 @@ class TestLLMClient:
 
     def test_parse_json_response_valid_json(self):
         """Test parsing valid JSON response."""
-        client = LLMClient.__new__(LLMClient)  # Create instance without calling __init__
+        client = LLMClient.__new__(
+            LLMClient
+        )  # Create instance without calling __init__
 
         response = '{"key": "value", "number": 42}'
         result = client._parse_json_response(response)
@@ -96,7 +107,9 @@ class TestLLMClient:
         """Test parsing JSON in markdown code blocks."""
         client = LLMClient.__new__(LLMClient)
 
-        response = 'Here is the analysis:\n```json\n{"key": "value"}\n```\nEnd of response'
+        response = (
+            'Here is the analysis:\n```json\n{"key": "value"}\n```\nEnd of response'
+        )
         result = client._parse_json_response(response)
 
         assert result == {"key": "value"}
@@ -114,7 +127,7 @@ class TestLLMClient:
         """Test parsing invalid JSON response."""
         client = LLMClient.__new__(LLMClient)
 
-        response = 'This is not JSON at all'
+        response = "This is not JSON at all"
 
         with pytest.raises(Exception, match="Could not parse JSON from LLM response"):
             client._parse_json_response(response)
@@ -138,9 +151,13 @@ class TestLLMClient:
         )
 
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = '{"languages": ["Python", "JavaScript"]}'
+        mock_response.choices[
+            0
+        ].message.content = '{"languages": ["Python", "JavaScript"]}'
 
-        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
+        with patch(
+            "app.services.llm_client.OpenAIClientPool.get_client"
+        ) as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -149,7 +166,7 @@ class TestLLMClient:
 
             files_data = [
                 {"name": "test.py", "content": "print('hello')"},
-                {"name": "test.js", "content": "console.log('hello')"}
+                {"name": "test.js", "content": "console.log('hello')"},
             ]
 
             result = client.detect_languages(files_data)
@@ -164,9 +181,13 @@ class TestLLMClient:
         )
 
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = '{"purpose": "Test file", "complexity": "low"}'
+        mock_response.choices[
+            0
+        ].message.content = '{"purpose": "Test file", "complexity": "low"}'
 
-        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
+        with patch(
+            "app.services.llm_client.OpenAIClientPool.get_client"
+        ) as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -179,7 +200,7 @@ class TestLLMClient:
                 "content": "print('hello')",
                 "extension": ".py",
                 "size": 100,
-                "lines": 1
+                "lines": 1,
             }
 
             result = client.analyze_single_file(file_data)
@@ -202,7 +223,9 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.choices[0].message.content = '{"purpose": "Test file"}'
 
-        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
+        with patch(
+            "app.services.llm_client.OpenAIClientPool.get_client"
+        ) as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -215,7 +238,7 @@ class TestLLMClient:
                 "content": "print('hello')",
                 "extension": ".py",
                 "size": 100,
-                "lines": 1
+                "lines": 1,
             }
 
             result = client.analyze_batch([file_data])
@@ -227,12 +250,18 @@ class TestLLMClient:
     @patch("app.utils.prompt_loader.PromptLoader")
     def test_analyze_batch_multiple_files(self, mock_prompt_loader):
         """Test batch analysis with multiple files."""
-        mock_prompt_loader.return_value.batch_analysis_prompt = "Analyze batch: {files_info}"
+        mock_prompt_loader.return_value.batch_analysis_prompt = (
+            "Analyze batch: {files_info}"
+        )
 
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = '{"batch_summary": {"main_purpose": "Web application"}}'
+        mock_response.choices[
+            0
+        ].message.content = '{"batch_summary": {"main_purpose": "Web application"}}'
 
-        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
+        with patch(
+            "app.services.llm_client.OpenAIClientPool.get_client"
+        ) as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -245,15 +274,15 @@ class TestLLMClient:
                     "path": "/path/to/test1.py",
                     "content": "print('hello')",
                     "extension": ".py",
-                    "lines": 1
+                    "lines": 1,
                 },
                 {
                     "name": "test2.js",
                     "path": "/path/to/test2.js",
                     "content": "console.log('hello')",
                     "extension": ".js",
-                    "lines": 1
-                }
+                    "lines": 1,
+                },
             ]
 
             result = client.analyze_batch(files_data)
@@ -268,9 +297,15 @@ class TestLLMClient:
         )
 
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = '{"project_type": "Web application", "main_language": "Python"}'
+        mock_response.choices[
+            0
+        ].message.content = (
+            '{"project_type": "Web application", "main_language": "Python"}'
+        )
 
-        with patch("app.services.llm_client.OpenAIClientPool.get_client") as mock_get_client:
+        with patch(
+            "app.services.llm_client.OpenAIClientPool.get_client"
+        ) as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -279,12 +314,12 @@ class TestLLMClient:
 
             files_data = [
                 {"name": "test.py", "extension": ".py"},
-                {"name": "test.js", "extension": ".js"}
+                {"name": "test.js", "extension": ".js"},
             ]
 
             analysis_results = [
                 {"batch_summary": {"main_purpose": "Backend API"}},
-                {"batch_summary": {"main_purpose": "Frontend UI"}}
+                {"batch_summary": {"main_purpose": "Frontend UI"}},
             ]
 
             result = client.generate_project_summary(files_data, analysis_results)

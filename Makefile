@@ -83,20 +83,15 @@ lint-fix: ## Run all linters and fix issues automatically
 
 format: ## Format code with black and ruff
 	@echo "$(BLUE)Formatting code...$(RESET)"
-	uv run black $(SRC_DIR)/
-	uv run ruff format $(SRC_DIR)/
-	uv run ruff check --fix $(SRC_DIR)/
-	uv run black *.py
-	uv run ruff format *.py
-	uv run ruff check --fix *.py
+	uv run black $(SRC_DIR)/ $(TEST_DIR)/ *.py || true
+	uv run ruff format $(SRC_DIR)/ $(TEST_DIR)/ *.py || true
+	uv run ruff check --fix $(SRC_DIR)/ $(TEST_DIR)/ *.py || true
 	@echo "$(GREEN)Code formatted!$(RESET)"
 
 format-check: ## Check code formatting without making changes
 	@echo "$(BLUE)Checking code formatting...$(RESET)"
-	uv run black --check --diff $(SRC_DIR)/
-	uv run ruff format --check $(SRC_DIR)/
-	uv run black --check --diff *.py
-	uv run ruff format --check *.py
+	uv run black --check --diff $(SRC_DIR)/ $(TEST_DIR)/ *.py
+	uv run ruff format --check $(SRC_DIR)/ $(TEST_DIR)/ *.py
 
 type-check: ## Run mypy type checker
 	@echo "$(BLUE)Running type checker...$(RESET)"

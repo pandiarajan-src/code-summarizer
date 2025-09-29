@@ -1,22 +1,32 @@
-import pytest
 import sys
-from unittest.mock import MagicMock, patch, PropertyMock
-from app.api.routes.health import health_check, get_version, get_config, get_info, ping
+from unittest.mock import patch
+
+import pytest
+from app.api.routes.health import get_config
+from app.api.routes.health import get_info
+from app.api.routes.health import get_version
+from app.api.routes.health import health_check
+from app.api.routes.health import ping
 from app.core.config import Settings
-from app.models.responses import HealthResponse, VersionResponse, ConfigResponse
+from app.models.responses import ConfigResponse
+from app.models.responses import HealthResponse
+from app.models.responses import VersionResponse
 
 
 class TestHealthCheck:
+    """Test health check functionality."""
+
     @pytest.mark.asyncio
     async def test_health_check_basic(self):
         """Test basic health check."""
-        with patch('app.core.config.find_env_file', return_value=None):
+        with patch("app.core.config.find_env_file", return_value=None):
             mock_settings = Settings(OPENAI_API_KEY="test-key")
             mock_settings.api_version = "1.0.0"
 
-        with patch('app.api.routes.health.startup_time', 100.0), \
-             patch('time.time', return_value=200.0):
-
+        with (
+            patch("app.api.routes.health.startup_time", 100.0),
+            patch("time.time", return_value=200.0),
+        ):
             result = await health_check(detailed=False, current_settings=mock_settings)
 
         assert isinstance(result, HealthResponse)
@@ -29,15 +39,16 @@ class TestHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_detailed(self):
         """Test detailed health check."""
-        with patch('app.core.config.find_env_file', return_value=None):
+        with patch("app.core.config.find_env_file", return_value=None):
             mock_settings = Settings(OPENAI_API_KEY="test-key")
             mock_settings.api_version = "1.0.0"
             mock_settings.config_file_path = "config.yaml"
             mock_settings.prompts_file_path = "prompts.yaml"
 
-        with patch('app.api.routes.health.startup_time', 100.0), \
-             patch('time.time', return_value=200.0):
-
+        with (
+            patch("app.api.routes.health.startup_time", 100.0),
+            patch("time.time", return_value=200.0),
+        ):
             result = await health_check(detailed=True, current_settings=mock_settings)
 
         assert result.status == "healthy"
@@ -49,27 +60,31 @@ class TestHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_detailed_no_api_key(self):
         """Test detailed health check without API key."""
-        with patch('app.core.config.find_env_file', return_value=None):
+        with patch("app.core.config.find_env_file", return_value=None):
             # Create settings with API key first, then mock it to appear empty
             mock_settings = Settings(OPENAI_API_KEY="test-key")
             mock_settings.api_version = "1.0.0"
             # Mock the openai_api_key property to return None
-            with patch.object(mock_settings, 'openai_api_key', None):
-
-                with patch('app.api.routes.health.startup_time', 100.0), \
-                     patch('time.time', return_value=200.0):
-
-                    result = await health_check(detailed=True, current_settings=mock_settings)
+            with patch.object(mock_settings, "openai_api_key", None):
+                with (
+                    patch("app.api.routes.health.startup_time", 100.0),
+                    patch("time.time", return_value=200.0),
+                ):
+                    result = await health_check(
+                        detailed=True, current_settings=mock_settings
+                    )
 
                 assert result.status == "healthy"
                 assert result.services["llm_service"] == "not_configured"
 
 
 class TestGetVersion:
+    """Test get version endpoint."""
+
     @pytest.mark.asyncio
     async def test_get_version(self):
         """Test version endpoint."""
-        with patch('app.core.config.find_env_file', return_value=None):
+        with patch("app.core.config.find_env_file", return_value=None):
             mock_settings = Settings(OPENAI_API_KEY="test-key")
             mock_settings.api_version = "1.0.0"
 
@@ -83,13 +98,19 @@ class TestGetVersion:
 
 
 class TestGetConfig:
+    """Test get config endpoint."""
+
     @pytest.mark.asyncio
     async def test_get_config_without_sensitive(self):
         """Test getting config without sensitive information."""
-        with patch('app.core.config.find_env_file', return_value=None):
-            mock_settings = Settings(OPENAI_API_KEY="secret-key", config_file_path="config.yaml")
+        with patch("app.core.config.find_env_file", return_value=None):
+            mock_settings = Settings(
+                OPENAI_API_KEY="secret-key", config_file_path="config.yaml"
+            )
 
-        result = await get_config(include_sensitive=False, current_settings=mock_settings)
+        result = await get_config(
+            include_sensitive=False, current_settings=mock_settings
+        )
 
         assert isinstance(result, ConfigResponse)
         assert result.config["openai_api_key"] == "***"
@@ -99,10 +120,12 @@ class TestGetConfig:
     @pytest.mark.asyncio
     async def test_get_config_with_sensitive(self):
         """Test getting config with sensitive information."""
-        with patch('app.core.config.find_env_file', return_value=None):
+        with patch("app.core.config.find_env_file", return_value=None):
             mock_settings = Settings(OPENAI_API_KEY="secret-key", config_file_path="")
 
-        result = await get_config(include_sensitive=True, current_settings=mock_settings)
+        result = await get_config(
+            include_sensitive=True, current_settings=mock_settings
+        )
 
         assert isinstance(result, ConfigResponse)
         assert result.config["openai_api_key"] == "secret-key"
@@ -112,10 +135,14 @@ class TestGetConfig:
     @pytest.mark.asyncio
     async def test_get_config_no_api_key(self):
         """Test getting config with masked API key."""
-        with patch('app.core.config.find_env_file', return_value=None):
-            mock_settings = Settings(OPENAI_API_KEY="secret-key", config_file_path="config.yaml")
+        with patch("app.core.config.find_env_file", return_value=None):
+            mock_settings = Settings(
+                OPENAI_API_KEY="secret-key", config_file_path="config.yaml"
+            )
 
-        result = await get_config(include_sensitive=False, current_settings=mock_settings)
+        result = await get_config(
+            include_sensitive=False, current_settings=mock_settings
+        )
 
         assert isinstance(result, ConfigResponse)
         # When sensitive=False, API key should be masked
@@ -124,10 +151,12 @@ class TestGetConfig:
     @pytest.mark.asyncio
     async def test_get_config_sources(self):
         """Test config sources detection."""
-        with patch('app.core.config.find_env_file', return_value=None):
+        with patch("app.core.config.find_env_file", return_value=None):
             mock_settings = Settings(OPENAI_API_KEY="test-key", config_file_path="")
 
-        result = await get_config(include_sensitive=False, current_settings=mock_settings)
+        result = await get_config(
+            include_sensitive=False, current_settings=mock_settings
+        )
 
         assert "defaults" in result.config_sources
         assert "config_file" not in result.config_sources
@@ -135,10 +164,12 @@ class TestGetConfig:
 
 
 class TestGetInfo:
+    """Test get info endpoint."""
+
     @pytest.mark.asyncio
     async def test_get_info(self):
         """Test info endpoint."""
-        with patch('app.core.config.find_env_file', return_value=None):
+        with patch("app.core.config.find_env_file", return_value=None):
             mock_settings = Settings(OPENAI_API_KEY="test-key")
             mock_settings.api_title = "Code Summarizer API"
             mock_settings.api_version = "1.0.0"
@@ -153,6 +184,8 @@ class TestGetInfo:
 
 
 class TestPing:
+    """Test ping endpoint."""
+
     @pytest.mark.asyncio
     async def test_ping(self):
         """Test ping endpoint."""

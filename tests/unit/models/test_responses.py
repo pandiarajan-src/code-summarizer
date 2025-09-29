@@ -1,28 +1,28 @@
-import pytest
 from datetime import datetime
-from app.models.responses import (
-    ErrorDetail,
-    ErrorResponse,
-    FileAnalysisResult,
-    BatchAnalysisResult,
-    ProjectSummary,
-    AnalysisResponse,
-    BatchAnalysisResponse,
-    HealthResponse,
-    VersionResponse,
-    ConfigResponse,
-    FileUploadResponse,
-    ValidationResponse
-)
+
+from app.models.responses import AnalysisResponse
+from app.models.responses import BatchAnalysisResponse
+from app.models.responses import BatchAnalysisResult
+from app.models.responses import ConfigResponse
+from app.models.responses import ErrorDetail
+from app.models.responses import ErrorResponse
+from app.models.responses import FileAnalysisResult
+from app.models.responses import FileUploadResponse
+from app.models.responses import HealthResponse
+from app.models.responses import ProjectSummary
+from app.models.responses import ValidationResponse
+from app.models.responses import VersionResponse
 
 
 class TestErrorDetail:
+    """Test error detail model."""
+
     def test_valid_error_detail(self):
         """Test valid error detail creation."""
         error = ErrorDetail(
             type="ValidationError",
             message="Invalid input data",
-            details={"field": "filename", "issue": "too long"}
+            details={"field": "filename", "issue": "too long"},
         )
 
         assert error.type == "ValidationError"
@@ -31,27 +31,20 @@ class TestErrorDetail:
 
     def test_error_detail_default_details(self):
         """Test error detail with default empty details."""
-        error = ErrorDetail(
-            type="ValidationError",
-            message="Invalid input data"
-        )
+        error = ErrorDetail(type="ValidationError", message="Invalid input data")
 
         assert error.details == {}
 
 
 class TestErrorResponse:
+    """Test error response model."""
+
     def test_valid_error_response(self):
         """Test valid error response creation."""
-        error_detail = ErrorDetail(
-            type="ValidationError",
-            message="Invalid input data"
-        )
+        error_detail = ErrorDetail(type="ValidationError", message="Invalid input data")
 
         response = ErrorResponse(
-            error=error_detail,
-            request_id="req-123",
-            path="/api/analyze",
-            method="POST"
+            error=error_detail, request_id="req-123", path="/api/analyze", method="POST"
         )
 
         assert response.error == error_detail
@@ -62,21 +55,16 @@ class TestErrorResponse:
 
     def test_error_response_without_request_id(self):
         """Test error response without request ID."""
-        error_detail = ErrorDetail(
-            type="ValidationError",
-            message="Invalid input data"
-        )
+        error_detail = ErrorDetail(type="ValidationError", message="Invalid input data")
 
-        response = ErrorResponse(
-            error=error_detail,
-            path="/api/analyze",
-            method="POST"
-        )
+        response = ErrorResponse(error=error_detail, path="/api/analyze", method="POST")
 
         assert response.request_id is None
 
 
 class TestFileAnalysisResult:
+    """Test file analysis result model."""
+
     def test_valid_file_analysis_result(self):
         """Test valid file analysis result creation."""
         result = FileAnalysisResult(
@@ -85,7 +73,7 @@ class TestFileAnalysisResult:
             language="Python",
             analysis={"purpose": "Test script", "complexity": "low"},
             tokens_used=150,
-            processing_time_seconds=2.5
+            processing_time_seconds=2.5,
         )
 
         assert result.filename == "test.py"
@@ -97,6 +85,8 @@ class TestFileAnalysisResult:
 
 
 class TestBatchAnalysisResult:
+    """Test batch analysis result model."""
+
     def test_valid_batch_analysis_result(self):
         """Test valid batch analysis result creation."""
         file_result = FileAnalysisResult(
@@ -105,7 +95,7 @@ class TestBatchAnalysisResult:
             language="Python",
             analysis={"purpose": "Test script"},
             tokens_used=100,
-            processing_time_seconds=1.0
+            processing_time_seconds=1.0,
         )
 
         batch_result = BatchAnalysisResult(
@@ -114,7 +104,7 @@ class TestBatchAnalysisResult:
             batch_summary={"main_purpose": "Testing"},
             individual_analyses=[file_result],
             total_tokens_used=150,
-            processing_time_seconds=3.0
+            processing_time_seconds=3.0,
         )
 
         assert batch_result.batch_id == "batch-1"
@@ -131,23 +121,31 @@ class TestBatchAnalysisResult:
             files_count=0,
             batch_summary={},
             total_tokens_used=0,
-            processing_time_seconds=0.0
+            processing_time_seconds=0.0,
         )
 
         assert batch_result.individual_analyses == []
 
 
 class TestProjectSummary:
+    """Test project summary model."""
+
     def test_valid_project_summary(self):
         """Test valid project summary creation."""
         summary = ProjectSummary(
             total_files=10,
             languages_detected=["Python", "JavaScript"],
-            project_structure={"type": "web_app", "components": ["backend", "frontend"]},
+            project_structure={
+                "type": "web_app",
+                "components": ["backend", "frontend"],
+            },
             key_insights=["Well structured", "Good test coverage"],
             recommendations=["Add documentation", "Improve error handling"],
             technical_debt={"complexity": "medium", "issues": 5},
-            dependencies={"Python": ["flask", "requests"], "JavaScript": ["react", "axios"]}
+            dependencies={
+                "Python": ["flask", "requests"],
+                "JavaScript": ["react", "axios"],
+            },
         )
 
         assert summary.total_files == 10
@@ -165,7 +163,7 @@ class TestProjectSummary:
             languages_detected=["Python"],
             project_structure={},
             key_insights=[],
-            recommendations=[]
+            recommendations=[],
         )
 
         assert summary.technical_debt == {}
@@ -173,6 +171,8 @@ class TestProjectSummary:
 
 
 class TestAnalysisResponse:
+    """Test analysis response model."""
+
     def test_valid_analysis_response(self):
         """Test valid analysis response creation."""
         file_result = FileAnalysisResult(
@@ -181,7 +181,7 @@ class TestAnalysisResponse:
             language="Python",
             analysis={"purpose": "Test"},
             tokens_used=100,
-            processing_time_seconds=1.0
+            processing_time_seconds=1.0,
         )
 
         batch_result = BatchAnalysisResult(
@@ -189,7 +189,7 @@ class TestAnalysisResponse:
             files_count=1,
             batch_summary={},
             total_tokens_used=100,
-            processing_time_seconds=1.0
+            processing_time_seconds=1.0,
         )
 
         project_summary = ProjectSummary(
@@ -197,7 +197,7 @@ class TestAnalysisResponse:
             languages_detected=["Python"],
             project_structure={},
             key_insights=[],
-            recommendations=[]
+            recommendations=[],
         )
 
         response = AnalysisResponse(
@@ -210,7 +210,7 @@ class TestAnalysisResponse:
             total_tokens_used=100,
             total_processing_time_seconds=2.0,
             config_used={"model": "gpt-4"},
-            markdown_output="# Analysis Results\n\nTest analysis"
+            markdown_output="# Analysis Results\n\nTest analysis",
         )
 
         assert response.success is True
@@ -233,7 +233,7 @@ class TestAnalysisResponse:
             files_analyzed=0,
             total_tokens_used=0,
             total_processing_time_seconds=0.0,
-            config_used={}
+            config_used={},
         )
 
         assert response.file_results == []
@@ -243,6 +243,8 @@ class TestAnalysisResponse:
 
 
 class TestBatchAnalysisResponse:
+    """Test batch analysis response model."""
+
     def test_valid_batch_analysis_response(self):
         """Test valid batch analysis response creation."""
         batch_result = BatchAnalysisResult(
@@ -250,7 +252,7 @@ class TestBatchAnalysisResponse:
             files_count=2,
             batch_summary={},
             total_tokens_used=200,
-            processing_time_seconds=3.0
+            processing_time_seconds=3.0,
         )
 
         project_summary = ProjectSummary(
@@ -258,7 +260,7 @@ class TestBatchAnalysisResponse:
             languages_detected=["Python"],
             project_structure={},
             key_insights=[],
-            recommendations=[]
+            recommendations=[],
         )
 
         response = BatchAnalysisResponse(
@@ -270,7 +272,7 @@ class TestBatchAnalysisResponse:
             total_files_analyzed=2,
             total_tokens_used=200,
             total_processing_time_seconds=4.0,
-            config_used={"model": "gpt-4"}
+            config_used={"model": "gpt-4"},
         )
 
         assert response.success is True
@@ -283,6 +285,8 @@ class TestBatchAnalysisResponse:
 
 
 class TestHealthResponse:
+    """Test health response model."""
+
     def test_valid_health_response(self):
         """Test valid health response creation."""
         response = HealthResponse(
@@ -290,7 +294,7 @@ class TestHealthResponse:
             version="1.0.0",
             uptime_seconds=3600.0,
             services={"llm": "connected", "storage": "connected"},
-            system_info={"cpu_usage": "50%", "memory_usage": "60%"}
+            system_info={"cpu_usage": "50%", "memory_usage": "60%"},
         )
 
         assert response.status == "healthy"
@@ -302,10 +306,7 @@ class TestHealthResponse:
 
     def test_health_response_minimal(self):
         """Test health response with minimal fields."""
-        response = HealthResponse(
-            status="healthy",
-            version="1.0.0"
-        )
+        response = HealthResponse(status="healthy", version="1.0.0")
 
         assert response.status == "healthy"
         assert response.version == "1.0.0"
@@ -315,6 +316,8 @@ class TestHealthResponse:
 
 
 class TestVersionResponse:
+    """Test version response model."""
+
     def test_valid_version_response(self):
         """Test valid version response creation."""
         response = VersionResponse(
@@ -322,7 +325,7 @@ class TestVersionResponse:
             app_version="2.0.0",
             python_version="3.12.0",
             build_date="2023-12-01",
-            commit_hash="abc123"
+            commit_hash="abc123",
         )
 
         assert response.api_version == "1.0.0"
@@ -334,9 +337,7 @@ class TestVersionResponse:
     def test_version_response_minimal(self):
         """Test version response with minimal fields."""
         response = VersionResponse(
-            api_version="1.0.0",
-            app_version="2.0.0",
-            python_version="3.12.0"
+            api_version="1.0.0", app_version="2.0.0", python_version="3.12.0"
         )
 
         assert response.build_date is None
@@ -344,11 +345,13 @@ class TestVersionResponse:
 
 
 class TestConfigResponse:
+    """Test config response model."""
+
     def test_valid_config_response(self):
         """Test valid config response creation."""
         response = ConfigResponse(
             config={"model": "gpt-4", "temperature": 0.1},
-            config_sources=["config.yaml", "environment", "defaults"]
+            config_sources=["config.yaml", "environment", "defaults"],
         )
 
         assert response.config == {"model": "gpt-4", "temperature": 0.1}
@@ -357,6 +360,8 @@ class TestConfigResponse:
 
 
 class TestFileUploadResponse:
+    """Test file upload response model."""
+
     def test_valid_file_upload_response(self):
         """Test valid file upload response creation."""
         response = FileUploadResponse(
@@ -364,9 +369,9 @@ class TestFileUploadResponse:
             files_uploaded=3,
             file_details=[
                 {"filename": "test1.py", "size": 100},
-                {"filename": "test2.js", "size": 200}
+                {"filename": "test2.js", "size": 200},
             ],
-            upload_id="upload-123"
+            upload_id="upload-123",
         )
 
         assert response.success is True
@@ -377,13 +382,15 @@ class TestFileUploadResponse:
 
 
 class TestValidationResponse:
+    """Test validation response model."""
+
     def test_valid_validation_response(self):
         """Test valid validation response creation."""
         response = ValidationResponse(
             valid=False,
             errors=["Missing required field", "Invalid format"],
             warnings=["File size is large"],
-            suggestions=["Use shorter filenames", "Compress files"]
+            suggestions=["Use shorter filenames", "Compress files"],
         )
 
         assert response.valid is False

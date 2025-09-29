@@ -23,13 +23,13 @@ class TestCLIIntegration:
 
     def test_cli_help(self):
         """Test CLI help command."""
-        result = self.runner.invoke(cli, ['--help'])
+        result = self.runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
         assert "AI-powered code analysis and summarization tool" in result.output
 
     def test_analyze_help(self):
         """Test analyze command help."""
-        result = self.runner.invoke(analyze, ['--help'])
+        result = self.runner.invoke(analyze, ["--help"])
         assert result.exit_code == 0
         assert "Analyze source code files" in result.output
 
@@ -39,7 +39,7 @@ class TestCLIIntegration:
     def test_analyze_single_file_success(self, mock_prompt_loader, mock_openai):
         """Test successful analysis of a single file."""
         # Create temporary Python file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("print('Hello, world!')\n")
             f.flush()
             temp_file = f.name
@@ -48,22 +48,26 @@ class TestCLIIntegration:
             # Mock LLM response
             mock_client = mock_openai.return_value
             content = '{"purpose": "Hello world script", "complexity": "low"}'
-            mock_message = type('MockMessage', (), {'content': content})()
-            mock_choice = type('MockChoice', (), {'message': mock_message})()
-            mock_response = type('MockResponse', (), {'choices': [mock_choice]})()
+            mock_message = type("MockMessage", (), {"content": content})()
+            mock_choice = type("MockChoice", (), {"message": mock_message})()
+            mock_response = type("MockResponse", (), {"choices": [mock_choice]})()
             mock_client.chat.completions.create.return_value = mock_response
 
             # Mock prompt loader
-            mock_prompt_loader.return_value.single_file_analysis_prompt = "Analyze: {content}"
+            mock_prompt_loader.return_value.single_file_analysis_prompt = (
+                "Analyze: {content}"
+            )
 
             # Mock config and prompts files
             with patch("builtins.open", mock_open(read_data="llm:\n  model: gpt-4")):
                 result = self.runner.invoke(analyze, [temp_file])
 
             assert result.exit_code == 0
-            assert ("Analysis completed successfully" in result.output or
-                    "purpose" in result.output or
-                    "Analysis complete!" in result.output)
+            assert (
+                "Analysis completed successfully" in result.output
+                or "purpose" in result.output
+                or "Analysis complete!" in result.output
+            )
 
         finally:
             # Cleanup
@@ -71,13 +75,13 @@ class TestCLIIntegration:
 
     def test_analyze_nonexistent_file(self):
         """Test analysis of nonexistent file."""
-        result = self.runner.invoke(analyze, ['/nonexistent/file.py'])
+        result = self.runner.invoke(analyze, ["/nonexistent/file.py"])
         assert result.exit_code != 0
         assert "does not exist" in result.output or "Error" in result.output
 
     def test_analyze_unsupported_file_type(self):
         """Test analysis of unsupported file type."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("This is a text file")
             f.flush()
             temp_file = f.name
@@ -106,13 +110,15 @@ class TestCLIIntegration:
             # Mock LLM response
             mock_client = mock_openai.return_value
             content = '{"batch_summary": {"main_purpose": "Test scripts"}}'
-            mock_message = type('MockMessage', (), {'content': content})()
-            mock_choice = type('MockChoice', (), {'message': mock_message})()
-            mock_response = type('MockResponse', (), {'choices': [mock_choice]})()
+            mock_message = type("MockMessage", (), {"content": content})()
+            mock_choice = type("MockChoice", (), {"message": mock_message})()
+            mock_response = type("MockResponse", (), {"choices": [mock_choice]})()
             mock_client.chat.completions.create.return_value = mock_response
 
             # Mock prompt loader
-            mock_prompt_loader.return_value.batch_analysis_prompt = "Analyze batch: {files_info}"
+            mock_prompt_loader.return_value.batch_analysis_prompt = (
+                "Analyze batch: {files_info}"
+            )
 
             # Mock config and prompts files
             with patch("builtins.open", mock_open(read_data="llm:\n  model: gpt-4")):
@@ -125,37 +131,43 @@ class TestCLIIntegration:
         with tempfile.TemporaryDirectory() as temp_dir:
             result = self.runner.invoke(analyze, [temp_dir])
             assert result.exit_code != 0
-            assert "No supported code files" in result.output or "Error" in result.output
+            assert (
+                "No supported code files" in result.output or "Error" in result.output
+            )
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     @patch("app.services.llm_client.OpenAI")
     @patch("app.utils.prompt_loader.PromptLoader")
     def test_analyze_with_output_file(self, mock_prompt_loader, mock_openai):
         """Test analysis with output file."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("print('Hello, world!')")
             f.flush()
             temp_file = f.name
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as out_f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as out_f:
             output_file = out_f.name
 
         try:
             # Mock LLM response
             mock_client = mock_openai.return_value
             mock_message = type(
-                'MockMessage', (), {'content': '{"purpose": "Hello world script"}'}
+                "MockMessage", (), {"content": '{"purpose": "Hello world script"}'}
             )()
-            mock_choice = type('MockChoice', (), {'message': mock_message})()
-            mock_response = type('MockResponse', (), {'choices': [mock_choice]})()
+            mock_choice = type("MockChoice", (), {"message": mock_message})()
+            mock_response = type("MockResponse", (), {"choices": [mock_choice]})()
             mock_client.chat.completions.create.return_value = mock_response
 
             # Mock prompt loader
-            mock_prompt_loader.return_value.single_file_analysis_prompt = "Analyze: {content}"
+            mock_prompt_loader.return_value.single_file_analysis_prompt = (
+                "Analyze: {content}"
+            )
 
             # Mock config and prompts files
             with patch("builtins.open", mock_open(read_data="llm:\n  model: gpt-4")):
-                result = self.runner.invoke(analyze, [temp_file, '--output', output_file])
+                result = self.runner.invoke(
+                    analyze, [temp_file, "--output", output_file]
+                )
 
             assert result.exit_code == 0
             assert Path(output_file).exists()
@@ -168,19 +180,20 @@ class TestCLIIntegration:
 
     def test_analyze_without_api_key(self):
         """Test analysis without API key."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("print('Hello, world!')")
             f.flush()
             temp_file = f.name
 
         try:
             # Mock settings to fail on import due to missing API key
-            with patch.dict(os.environ, {}, clear=True):
-                # Mock the import inside the analyze function
-                with patch('app.core.config.settings') as mock_settings:
-                    # Simulate the validation error that would occur without API key
-                    mock_settings.side_effect = ValueError("OPENAI_API_KEY is required")
-                    result = self.runner.invoke(analyze, [temp_file])
+            with (
+                patch.dict(os.environ, {}, clear=True),
+                patch("app.core.config.settings") as mock_settings,
+            ):
+                # Simulate the validation error that would occur without API key
+                mock_settings.side_effect = ValueError("OPENAI_API_KEY is required")
+                result = self.runner.invoke(analyze, [temp_file])
 
             assert result.exit_code != 0
             assert "OPENAI_API_KEY" in result.output or "Error" in result.output
@@ -191,7 +204,7 @@ class TestCLIIntegration:
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     def test_analyze_verbose_mode(self):
         """Test analysis in verbose mode."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("print('Hello, world!')")
             f.flush()
             temp_file = f.name
@@ -199,11 +212,14 @@ class TestCLIIntegration:
         try:
             # Mock config and prompts files
             with patch("builtins.open", mock_open(read_data="llm:\n  model: gpt-4")):
-                result = self.runner.invoke(analyze, [temp_file, '--verbose'])
+                result = self.runner.invoke(analyze, [temp_file, "--verbose"])
 
             # In verbose mode, should show more output or at least not crash
             # Exact behavior depends on implementation
-            assert "Loading configuration" in result.output or result.exit_code in [0, 1]
+            assert "Loading configuration" in result.output or result.exit_code in [
+                0,
+                1,
+            ]
 
         finally:
             Path(temp_file).unlink()
@@ -219,13 +235,15 @@ class TestCLIIntegration:
     @patch("app.utils.prompt_loader.PromptLoader")
     @patch("tiktoken.encoding_for_model")
     @patch("zipfile.ZipFile")
-    def test_analyze_zip_file(self, mock_zipfile, mock_tiktoken, mock_prompt_loader, mock_openai):
+    def test_analyze_zip_file(
+        self, mock_zipfile, mock_tiktoken, mock_prompt_loader, mock_openai
+    ):
         """Test analysis of ZIP file."""
         # Create a ZIP file with Python code
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as zip_f:
-            with zipfile.ZipFile(zip_f.name, 'w') as zf:
-                zf.writestr('test.py', "print('hello from zip')")
-                zf.writestr('subdir/main.py', "def main(): pass")
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as zip_f:
+            with zipfile.ZipFile(zip_f.name, "w") as zf:
+                zf.writestr("test.py", "print('hello from zip')")
+                zf.writestr("subdir/main.py", "def main(): pass")
 
             zip_file = zip_f.name
 
@@ -233,13 +251,15 @@ class TestCLIIntegration:
             # Mock LLM response
             mock_client = mock_openai.return_value
             content = '{"batch_summary": {"main_purpose": "Zip archive code"}}'
-            mock_message = type('MockMessage', (), {'content': content})()
-            mock_choice = type('MockChoice', (), {'message': mock_message})()
-            mock_response = type('MockResponse', (), {'choices': [mock_choice]})()
+            mock_message = type("MockMessage", (), {"content": content})()
+            mock_choice = type("MockChoice", (), {"message": mock_message})()
+            mock_response = type("MockResponse", (), {"choices": [mock_choice]})()
             mock_client.chat.completions.create.return_value = mock_response
 
             # Mock prompt loader
-            mock_prompt_loader.return_value.batch_analysis_prompt = "Analyze batch: {files_info}"
+            mock_prompt_loader.return_value.batch_analysis_prompt = (
+                "Analyze batch: {files_info}"
+            )
 
             # Mock tiktoken tokenizer
             mock_encoder = MagicMock()
@@ -248,7 +268,7 @@ class TestCLIIntegration:
 
             # Mock zipfile for file processing
             mock_zip_instance = MagicMock()
-            mock_zip_instance.namelist.return_value = ['test.py', 'subdir/main.py']
+            mock_zip_instance.namelist.return_value = ["test.py", "subdir/main.py"]
 
             # Mock file info for size checks
             mock_file_info = MagicMock()
@@ -259,8 +279,8 @@ class TestCLIIntegration:
             def mock_open_file(file_path):
                 mock_file_obj = MagicMock()
                 content_map = {
-                    'test.py': b"print('hello from zip')",
-                    'subdir/main.py': b"def main(): pass"
+                    "test.py": b"print('hello from zip')",
+                    "subdir/main.py": b"def main(): pass",
                 }
                 mock_file_obj.read.return_value = content_map[file_path]
                 # Make it work as a context manager
@@ -301,14 +321,16 @@ file_processing:
 
     def test_analyze_with_invalid_config(self):
         """Test analysis with invalid configuration file."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("print('Hello, world!')")
             f.flush()
             temp_file = f.name
 
         try:
             # Mock invalid YAML config
-            with patch("builtins.open", mock_open(read_data="invalid: yaml: content: [")):
+            with patch(
+                "builtins.open", mock_open(read_data="invalid: yaml: content: [")
+            ):
                 result = self.runner.invoke(analyze, [temp_file])
 
             # Should handle invalid config gracefully

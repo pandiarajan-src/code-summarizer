@@ -1,20 +1,31 @@
+from unittest.mock import MagicMock
+from unittest.mock import mock_open
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, mock_open, MagicMock
 from app.core.context_manager import ContextManager
 
 
 class TestContextManager:
+    """Test context manager functionality."""
+
     @pytest.fixture(autouse=True)
     def setup_mock_tiktoken(self):
         """Setup mock tiktoken for all tests."""
         mock_tokenizer = MagicMock()
+
         def mock_encode(text):
             # Return empty list for empty string, otherwise return some tokens
             return [] if not text else [1, 2, 3, 4]
+
         mock_tokenizer.encode.side_effect = mock_encode
         with patch("tiktoken.encoding_for_model", return_value=mock_tokenizer):
             yield
-    @patch("pathlib.Path.open", mock_open(read_data="llm:\n  model: gpt-4\n  max_context_tokens: 8000"))
+
+    @patch(
+        "pathlib.Path.open",
+        mock_open(read_data="llm:\n  model: gpt-4\n  max_context_tokens: 8000"),
+    )
     def test_init_with_config(self):
         """Test initialization with configuration file."""
         cm = ContextManager("test_config.yaml")
@@ -51,7 +62,7 @@ class TestContextManager:
             "name": "test.py",
             "path": "/path/to/test.py",
             "content": "print('Hello, world!')",
-            "lines": 1
+            "lines": 1,
         }
 
         tokens = cm.estimate_file_tokens(file_data)
@@ -74,7 +85,7 @@ class TestContextManager:
             "content": "print('Hello, world!')",
             "lines": 1,
             "size": 100,
-            "extension": ".py"
+            "extension": ".py",
         }
 
         batches = cm.create_batches([file_data])
@@ -93,7 +104,7 @@ class TestContextManager:
                 "content": f"print('Hello, world {i}!')",
                 "lines": 1,
                 "size": 100,
-                "extension": ".py"
+                "extension": ".py",
             }
             for i in range(5)
         ]
@@ -113,7 +124,7 @@ class TestContextManager:
             "content": large_content,
             "lines": 1000,
             "size": len(large_content),
-            "extension": ".py"
+            "extension": ".py",
         }
 
         truncated = cm._truncate_file_content(file_data, 1000)
@@ -134,7 +145,7 @@ class TestContextManager:
                 "content": "print('Hello')",
                 "lines": 1,
                 "size": 100,
-                "extension": ".py"
+                "extension": ".py",
             },
             {
                 "name": "test2.js",
@@ -142,8 +153,8 @@ class TestContextManager:
                 "content": "console.log('Hello')",
                 "lines": 1,
                 "size": 120,
-                "extension": ".js"
-            }
+                "extension": ".js",
+            },
         ]
 
         info = cm.get_batch_info(batch)
@@ -177,7 +188,7 @@ class TestContextManager:
                 "content": "print('Hello')",
                 "lines": 1,
                 "size": 100,
-                "extension": ".py"
+                "extension": ".py",
             }
         ]
 
@@ -192,7 +203,7 @@ class TestContextManager:
                 "content": f"print('Hello {i}')",
                 "lines": 1,
                 "size": 100,
-                "extension": ".py"
+                "extension": ".py",
             }
             for i in range(20)
         ]

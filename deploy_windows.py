@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Simple Windows Deployment Script for Code Summarizer
+"""Simple Windows Deployment Script for Code Summarizer.
+
 Runs API and Frontend servers without Docker
 """
 
@@ -19,6 +20,8 @@ if platform.system() == "Windows":
 
 
 class Colors:
+    """Terminal color constants for Windows-compatible output."""
+
     GREEN = "\033[92m"
     YELLOW = "\033[93m"
     RED = "\033[91m"
@@ -72,15 +75,15 @@ def kill_process_on_port(port):
             print(f"Could not kill process on port {port}: {e}")
     else:
         # Unix/Linux/Mac command
-        try:
+        import contextlib
+
+        with contextlib.suppress(Exception):
             subprocess.run(
                 f"lsof -ti:{port} | xargs kill -9",
                 check=False,
                 shell=True,
                 capture_output=True,
             )
-        except:
-            pass
 
 
 def check_python():
@@ -266,8 +269,9 @@ def start_api_server():
                         "✓ API server is running on http://localhost:8000", Colors.GREEN
                     )
                     return api_process
-            except Exception:
-                pass
+            except Exception:  # noqa: S112
+                # Health check failed, continue waiting
+                continue
 
     print_colored(
         "⚠️  API may not have started properly. Check for errors.", Colors.YELLOW

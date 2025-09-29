@@ -2,9 +2,10 @@
 
 import os
 import tempfile
-import pytest
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 
 @pytest.fixture(scope="session")
@@ -51,7 +52,7 @@ if __name__ == "__main__":
 @pytest.fixture
 def sample_javascript_code():
     """Return sample JavaScript code for testing."""
-    return '''
+    return """
 function greet(name) {
     return `Hello, ${name}!`;
 }
@@ -71,7 +72,7 @@ class Person {
 const person = new Person("Alice", 30);
 console.log(person.introduce());
 console.log(greet("World"));
-'''
+"""
 
 
 @pytest.fixture
@@ -86,7 +87,7 @@ def mock_openai_response():
                 "name": "hello_world",
                 "type": "function",
                 "purpose": "Prints hello world message",
-                "line_number": 2
+                "line_number": 2,
             }
         ],
         "classes": [
@@ -94,12 +95,12 @@ def mock_openai_response():
                 "name": "Calculator",
                 "type": "class",
                 "purpose": "Simple calculator for basic operations",
-                "line_number": 7
+                "line_number": 7,
             }
         ],
         "imports": [],
         "key_features": ["Command line output", "Object-oriented design"],
-        "potential_issues": []
+        "potential_issues": [],
     }
 
 
@@ -109,7 +110,7 @@ def mock_env_vars():
     env_vars = {
         "OPENAI_API_KEY": "test-api-key",
         "OPENAI_BASE_URL": "https://api.openai.com/v1",
-        "MODEL_NAME": "gpt-4o"
+        "MODEL_NAME": "gpt-4o",
     }
 
     with patch.dict(os.environ, env_vars):
@@ -124,17 +125,17 @@ def sample_config():
             "model": "gpt-4o",
             "max_tokens": 4000,
             "temperature": 0.1,
-            "max_context_tokens": 128000
+            "max_context_tokens": 128000,
         },
         "file_processing": {
             "supported_extensions": [".py", ".js", ".ts", ".java", ".cpp"],
-            "exclude_patterns": ["__pycache__", "*.pyc", "node_modules"]
+            "exclude_patterns": ["__pycache__", "*.pyc", "node_modules"],
         },
         "analysis": {
             "enable_batch_processing": True,
             "max_batch_size": 10,
-            "enable_markdown_output": True
-        }
+            "enable_markdown_output": True,
+        },
     }
 
 
@@ -149,12 +150,14 @@ def pytest_configure(config):
 
 
 # Skip tests that require API key if not provided
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(config, items):  # noqa: ARG001
     """Modify test collection to handle API key requirements."""
     skip_api = pytest.mark.skip(reason="OPENAI_API_KEY not set")
 
     for item in items:
-        if "integration" in item.keywords and not os.getenv("OPENAI_API_KEY"):
-            # Only skip integration tests if they specifically test API functionality
-            if "api" in item.keywords or "llm" in item.keywords:
-                item.add_marker(skip_api)
+        if (
+            "integration" in item.keywords
+            and not os.getenv("OPENAI_API_KEY")
+            and ("api" in item.keywords or "llm" in item.keywords)
+        ):
+            item.add_marker(skip_api)

@@ -1,17 +1,25 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from app.core.config import Settings
+from app.core.exceptions import ConfigurationError
+from app.core.exceptions import FileProcessingError
+from app.core.exceptions import LLMServiceError
+from app.models.requests import FileContent
 from app.services.analysis_service import AnalysisService
-from app.models.requests import FileContent, ConfigOverrides
-from app.core.exceptions import AnalysisError, FileProcessingError, ConfigurationError
 
 
 class TestAnalysisService:
+    """Test analysis service functionality."""
+
     @patch("app.services.analysis_service.FileProcessor")
     @patch("app.services.analysis_service.LLMClient")
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
-    def test_init_success(self, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    def test_init_success(
+        self, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test successful initialization."""
         settings = Settings()
         service = AnalysisService(settings)
@@ -22,12 +30,17 @@ class TestAnalysisService:
         assert service.context_manager is not None
         assert service.markdown_formatter is not None
 
-    @patch("app.services.analysis_service.FileProcessor", side_effect=Exception("Init failed"))
+    @patch(
+        "app.services.analysis_service.FileProcessor",
+        side_effect=Exception("Init failed"),
+    )
     def test_init_failure(self, mock_file_processor):
         """Test initialization failure."""
         settings = Settings()
 
-        with pytest.raises(ConfigurationError, match="Failed to initialize analysis components"):
+        with pytest.raises(
+            ConfigurationError, match="Failed to initialize analysis components"
+        ):
             AnalysisService(settings)
 
     @pytest.mark.asyncio
@@ -35,40 +48,50 @@ class TestAnalysisService:
     @patch("app.services.analysis_service.LLMClient")
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
-    async def test_analyze_files_success(self, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    async def test_analyze_files_success(
+        self, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test successful file analysis."""
         settings = Settings()
         service = AnalysisService(settings)
 
         # Mock context manager
         mock_context_instance = MagicMock()
-        mock_context_instance.create_batches.return_value = [[{
-            "path": "test.py",
-            "name": "test.py",
-            "content": "print('hello')",
-            "extension": ".py",
-            "size": 100,
-            "lines": 1,
-            "language": "python"
-        }]]
+        mock_context_instance.create_batches.return_value = [
+            [
+                {
+                    "path": "test.py",
+                    "name": "test.py",
+                    "content": "print('hello')",
+                    "extension": ".py",
+                    "size": 100,
+                    "lines": 1,
+                    "language": "python",
+                }
+            ]
+        ]
         service.context_manager = mock_context_instance
 
         # Mock LLM client
         mock_llm_instance = MagicMock()
         mock_llm_instance.analyze_batch.return_value = {
             "batch_summary": {"main_purpose": "Simple script"},
-            "individual_analyses": [{
-                "filename": "test.py",
-                "file_type": "python",
-                "language": "python",
-                "analysis": {"purpose": "Print hello"},
-                "tokens_used": 50
-            }],
-            "tokens_used": 100
+            "individual_analyses": [
+                {
+                    "filename": "test.py",
+                    "file_type": "python",
+                    "language": "python",
+                    "analysis": {"purpose": "Print hello"},
+                    "tokens_used": 50,
+                }
+            ],
+            "tokens_used": 100,
         }
         service.llm_client = mock_llm_instance
 
-        files = [FileContent(filename="test.py", content="print('hello')", file_type=".py")]
+        files = [
+            FileContent(filename="test.py", content="print('hello')", file_type=".py")
+        ]
 
         result = await service.analyze_files(files)
 
@@ -83,7 +106,9 @@ class TestAnalysisService:
     @patch("app.services.analysis_service.LLMClient")
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
-    async def test_analyze_files_empty_input(self, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    async def test_analyze_files_empty_input(
+        self, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test analysis with empty file list."""
         settings = Settings()
         service = AnalysisService(settings)
@@ -98,7 +123,9 @@ class TestAnalysisService:
     @patch("app.services.analysis_service.LLMClient")
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
-    async def test_analyze_files_with_project_summary(self, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    async def test_analyze_files_with_project_summary(
+        self, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test analysis with project summary generation."""
         settings = Settings()
         service = AnalysisService(settings)
@@ -106,14 +133,28 @@ class TestAnalysisService:
         # Mock context manager for multiple files
         mock_context_instance = MagicMock()
         mock_context_instance.create_batches.return_value = [
-            [{
-                "path": "test1.py", "name": "test1.py", "content": "print('hello')",
-                "extension": ".py", "size": 100, "lines": 1, "language": "python"
-            }],
-            [{
-                "path": "test2.py", "name": "test2.py", "content": "print('world')",
-                "extension": ".py", "size": 100, "lines": 1, "language": "python"
-            }]
+            [
+                {
+                    "path": "test1.py",
+                    "name": "test1.py",
+                    "content": "print('hello')",
+                    "extension": ".py",
+                    "size": 100,
+                    "lines": 1,
+                    "language": "python",
+                }
+            ],
+            [
+                {
+                    "path": "test2.py",
+                    "name": "test2.py",
+                    "content": "print('world')",
+                    "extension": ".py",
+                    "size": 100,
+                    "lines": 1,
+                    "language": "python",
+                }
+            ],
         ]
         service.context_manager = mock_context_instance
 
@@ -122,7 +163,7 @@ class TestAnalysisService:
         mock_llm_instance.analyze_batch.return_value = {
             "batch_summary": {"main_purpose": "Simple script"},
             "individual_analyses": [],
-            "tokens_used": 50
+            "tokens_used": 50,
         }
         mock_llm_instance.generate_project_summary.return_value = {
             "languages_detected": ["Python"],
@@ -130,13 +171,13 @@ class TestAnalysisService:
             "key_insights": ["Simple Python scripts"],
             "recommendations": ["Add documentation"],
             "technical_debt": {},
-            "dependencies": {}
+            "dependencies": {},
         }
         service.llm_client = mock_llm_instance
 
         files = [
             FileContent(filename="test1.py", content="print('hello')", file_type=".py"),
-            FileContent(filename="test2.py", content="print('world')", file_type=".py")
+            FileContent(filename="test2.py", content="print('world')", file_type=".py"),
         ]
 
         result = await service.analyze_files(files)
@@ -151,17 +192,28 @@ class TestAnalysisService:
     @patch("app.services.analysis_service.LLMClient")
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
-    async def test_analyze_files_with_markdown_output(self, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    async def test_analyze_files_with_markdown_output(
+        self, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test analysis with markdown output generation."""
         settings = Settings()
         service = AnalysisService(settings)
 
         # Mock context manager
         mock_context_instance = MagicMock()
-        mock_context_instance.create_batches.return_value = [[{
-            "path": "test.py", "name": "test.py", "content": "print('hello')",
-            "extension": ".py", "size": 100, "lines": 1, "language": "python"
-        }]]
+        mock_context_instance.create_batches.return_value = [
+            [
+                {
+                    "path": "test.py",
+                    "name": "test.py",
+                    "content": "print('hello')",
+                    "extension": ".py",
+                    "size": 100,
+                    "lines": 1,
+                    "language": "python",
+                }
+            ]
+        ]
         service.context_manager = mock_context_instance
 
         # Mock LLM client
@@ -169,16 +221,20 @@ class TestAnalysisService:
         mock_llm_instance.analyze_batch.return_value = {
             "batch_summary": {"main_purpose": "Simple script"},
             "individual_analyses": [],
-            "tokens_used": 50
+            "tokens_used": 50,
         }
         service.llm_client = mock_llm_instance
 
         # Mock markdown formatter
         mock_markdown_instance = MagicMock()
-        mock_markdown_instance.format_results.return_value = "# Analysis Results\n\nSimple script analysis."
+        mock_markdown_instance.format_results.return_value = (
+            "# Analysis Results\n\nSimple script analysis."
+        )
         service.markdown_formatter = mock_markdown_instance
 
-        files = [FileContent(filename="test.py", content="print('hello')", file_type=".py")]
+        files = [
+            FileContent(filename="test.py", content="print('hello')", file_type=".py")
+        ]
 
         result = await service.analyze_files(files, output_format="markdown")
 
@@ -190,17 +246,28 @@ class TestAnalysisService:
     @patch("app.services.analysis_service.LLMClient")
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
-    async def test_analyze_files_llm_failure(self, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    async def test_analyze_files_llm_failure(
+        self, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test analysis with LLM failure."""
         settings = Settings()
         service = AnalysisService(settings)
 
         # Mock context manager
         mock_context_instance = MagicMock()
-        mock_context_instance.create_batches.return_value = [[{
-            "path": "test.py", "name": "test.py", "content": "print('hello')",
-            "extension": ".py", "size": 100, "lines": 1, "language": "python"
-        }]]
+        mock_context_instance.create_batches.return_value = [
+            [
+                {
+                    "path": "test.py",
+                    "name": "test.py",
+                    "content": "print('hello')",
+                    "extension": ".py",
+                    "size": 100,
+                    "lines": 1,
+                    "language": "python",
+                }
+            ]
+        ]
         service.context_manager = mock_context_instance
 
         # Mock LLM client to fail
@@ -208,9 +275,11 @@ class TestAnalysisService:
         mock_llm_instance.analyze_batch.side_effect = Exception("LLM API failed")
         service.llm_client = mock_llm_instance
 
-        files = [FileContent(filename="test.py", content="print('hello')", file_type=".py")]
+        files = [
+            FileContent(filename="test.py", content="print('hello')", file_type=".py")
+        ]
 
-        with pytest.raises(Exception):  # Will be wrapped in LLMServiceError
+        with pytest.raises(LLMServiceError):
             await service.analyze_files(files)
 
     @pytest.mark.asyncio
@@ -219,40 +288,57 @@ class TestAnalysisService:
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
     @patch("pathlib.Path.exists", return_value=True)
-    async def test_analyze_from_paths_success(self, mock_exists, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    async def test_analyze_from_paths_success(
+        self, mock_exists, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test successful analysis from file paths."""
         settings = Settings()
         service = AnalysisService(settings)
 
         # Mock file processor
         mock_file_processor_instance = MagicMock()
-        mock_file_processor_instance.process_input.return_value = [{
-            "path": "/path/to/test.py",
-            "name": "test.py",
-            "content": "print('hello')",
-            "extension": ".py",
-            "size": 100,
-            "lines": 1
-        }]
-        # Add async mock for process_input_async
-        async def mock_process_input_async(path):
-            return [{
+        mock_file_processor_instance.process_input.return_value = [
+            {
                 "path": "/path/to/test.py",
                 "name": "test.py",
                 "content": "print('hello')",
                 "extension": ".py",
                 "size": 100,
-                "lines": 1
-            }]
+                "lines": 1,
+            }
+        ]
+
+        # Add async mock for process_input_async
+        async def mock_process_input_async(path):  # noqa: ARG001
+            return [
+                {
+                    "path": "/path/to/test.py",
+                    "name": "test.py",
+                    "content": "print('hello')",
+                    "extension": ".py",
+                    "size": 100,
+                    "lines": 1,
+                }
+            ]
+
         mock_file_processor_instance.process_input_async = mock_process_input_async
         service.file_processor = mock_file_processor_instance
 
         # Mock context manager
         mock_context_instance = MagicMock()
-        mock_context_instance.create_batches.return_value = [[{
-            "path": "/path/to/test.py", "name": "test.py", "content": "print('hello')",
-            "extension": ".py", "size": 100, "lines": 1, "language": "python"
-        }]]
+        mock_context_instance.create_batches.return_value = [
+            [
+                {
+                    "path": "/path/to/test.py",
+                    "name": "test.py",
+                    "content": "print('hello')",
+                    "extension": ".py",
+                    "size": 100,
+                    "lines": 1,
+                    "language": "python",
+                }
+            ]
+        ]
         service.context_manager = mock_context_instance
 
         # Mock LLM client
@@ -260,7 +346,7 @@ class TestAnalysisService:
         mock_llm_instance.analyze_batch.return_value = {
             "batch_summary": {"main_purpose": "Simple script"},
             "individual_analyses": [],
-            "tokens_used": 50
+            "tokens_used": 50,
         }
         service.llm_client = mock_llm_instance
 
@@ -275,7 +361,9 @@ class TestAnalysisService:
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
     @patch("pathlib.Path.exists", return_value=False)
-    async def test_analyze_from_paths_nonexistent(self, mock_exists, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    async def test_analyze_from_paths_nonexistent(
+        self, mock_exists, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test analysis from nonexistent paths."""
         settings = Settings()
         service = AnalysisService(settings)
@@ -289,8 +377,12 @@ class TestAnalysisService:
         service = AnalysisService.__new__(AnalysisService)  # Create without init
 
         files = [
-            FileContent(filename="/path/to/test.py", content="print('hello')", file_type=".py"),
-            FileContent(filename="script.js", content="console.log('hello')", file_type=".js")
+            FileContent(
+                filename="/path/to/test.py", content="print('hello')", file_type=".py"
+            ),
+            FileContent(
+                filename="script.js", content="console.log('hello')", file_type=".js"
+            ),
         ]
 
         result = await service._convert_file_content_to_legacy_format(files)
@@ -316,7 +408,9 @@ class TestAnalysisService:
     @patch("app.services.analysis_service.LLMClient")
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
-    def test_get_supported_file_types(self, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    def test_get_supported_file_types(
+        self, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test getting supported file types."""
         settings = Settings()
         service = AnalysisService(settings)
@@ -330,7 +424,9 @@ class TestAnalysisService:
     @patch("app.services.analysis_service.LLMClient")
     @patch("app.services.analysis_service.ContextManager")
     @patch("app.services.analysis_service.MarkdownFormatter")
-    def test_get_current_config(self, mock_markdown, mock_context, mock_llm, mock_file_processor):
+    def test_get_current_config(
+        self, mock_markdown, mock_context, mock_llm, mock_file_processor
+    ):
         """Test getting current configuration."""
         settings = Settings()
         service = AnalysisService(settings)

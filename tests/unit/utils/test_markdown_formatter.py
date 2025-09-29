@@ -1,10 +1,12 @@
-import pytest
-from datetime import datetime
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open
+from unittest.mock import patch
+
 from app.utils.markdown_formatter import MarkdownFormatter
 
 
 class TestMarkdownFormatter:
+    """Test markdown formatter functionality."""
+
     @patch("pathlib.Path.open", mock_open(read_data="config:\n  key: value"))
     def test_init_with_config(self):
         """Test initialization with configuration file."""
@@ -27,15 +29,15 @@ class TestMarkdownFormatter:
                 "name": "main.py",
                 "extension": ".py",
                 "lines": 50,
-                "size": 1000
+                "size": 1000,
             },
             {
                 "path": "frontend/app.js",
                 "name": "app.js",
                 "extension": ".js",
                 "lines": 30,
-                "size": 800
-            }
+                "size": 800,
+            },
         ]
 
         project_info = formatter._extract_project_info(files_data)
@@ -63,7 +65,7 @@ class TestMarkdownFormatter:
 
         project_info = {"name": "My Project"}
 
-        with patch('app.utils.markdown_formatter.datetime') as mock_datetime:
+        with patch("app.utils.markdown_formatter.datetime") as mock_datetime:
             mock_datetime.now.return_value.strftime.return_value = "2023-12-01 10:30:00"
             header = formatter._format_header(project_info)
 
@@ -78,10 +80,10 @@ class TestMarkdownFormatter:
             "languages": ["Python", "JavaScript"],
             "total_files": 5,
             "total_lines": 500,
-            "total_size": 10240
+            "total_size": 10240,
         }
 
-        with patch('app.utils.markdown_formatter.datetime') as mock_datetime:
+        with patch("app.utils.markdown_formatter.datetime") as mock_datetime:
             mock_datetime.now.return_value.strftime.return_value = "2023-12-01"
             overview = formatter._format_overview(project_info, [])
 
@@ -99,24 +101,28 @@ class TestMarkdownFormatter:
             {
                 "batch_summary": {
                     "main_purpose": "Web backend API",
-                    "patterns": ["MVC", "REST API"]
+                    "patterns": ["MVC", "REST API"],
                 }
             },
             {
                 "batch_summary": {
                     "main_purpose": "Frontend UI components",
-                    "patterns": ["Component-based"]
+                    "patterns": ["Component-based"],
                 }
-            }
+            },
         ]
 
         summary = formatter._format_project_summary(analysis_results)
 
         assert "## 🎯 Project Summary" in summary
-        assert ("Web backend API; Frontend UI components" in summary or
-                "Frontend UI components; Web backend API" in summary)
+        assert (
+            "Web backend API; Frontend UI components" in summary
+            or "Frontend UI components; Web backend API" in summary
+        )
         # Check that all patterns are present (order may vary)
-        assert "MVC" in summary and "REST API" in summary and "Component-based" in summary
+        assert "MVC" in summary
+        assert "REST API" in summary
+        assert "Component-based" in summary
 
     def test_format_project_summary_detailed(self):
         """Test detailed project summary formatting."""
@@ -128,7 +134,11 @@ class TestMarkdownFormatter:
                     "main_purpose": "E-commerce platform",
                     "type": "Web application",
                     "architecture": "Microservices",
-                    "key_components": ["User service", "Product catalog", "Payment gateway"]
+                    "key_components": [
+                        "User service",
+                        "Product catalog",
+                        "Payment gateway",
+                    ],
                 }
             }
         ]
@@ -157,17 +167,17 @@ class TestMarkdownFormatter:
                     "name": "main",
                     "type": "function",
                     "purpose": "Application entry point",
-                    "line_number": 50
+                    "line_number": 50,
                 },
                 {
                     "name": "setup_logging",
                     "type": "function",
-                    "purpose": "Configure application logging"
-                }
+                    "purpose": "Configure application logging",
+                },
             ],
             "imports": ["os", "sys", "logging"],
             "key_features": ["Command line interface", "Logging configuration"],
-            "potential_issues": ["Hard-coded configuration", "No error handling"]
+            "potential_issues": ["Hard-coded configuration", "No error handling"],
         }
 
         md = formatter._format_single_file(file_analysis)
@@ -195,7 +205,7 @@ class TestMarkdownFormatter:
                         "filename": "main.py",
                         "language": "Python",
                         "purpose": "Main module",
-                        "complexity": "low"
+                        "complexity": "low",
                     }
                 ]
             }
@@ -217,13 +227,9 @@ class TestMarkdownFormatter:
                         "from": "main.py",
                         "to": "utils.py",
                         "type": "imports",
-                        "description": "Uses utility functions"
+                        "description": "Uses utility functions",
                     },
-                    {
-                        "from": "app.py",
-                        "to": "config.py",
-                        "type": "imports"
-                    }
+                    {"from": "app.py", "to": "config.py", "type": "imports"},
                 ]
             }
         ]
@@ -254,14 +260,10 @@ class TestMarkdownFormatter:
             {
                 "technical_details": {
                     "patterns": ["Factory Pattern", "Singleton"],
-                    "dependencies": ["requests", "flask"]
+                    "dependencies": ["requests", "flask"],
                 },
-                "project_summary": {
-                    "technologies": ["Python", "Flask", "SQLAlchemy"]
-                },
-                "batch_summary": {
-                    "patterns": ["MVC"]
-                }
+                "project_summary": {"technologies": ["Python", "Flask", "SQLAlchemy"]},
+                "batch_summary": {"patterns": ["MVC"]},
             }
         ]
 
@@ -297,33 +299,36 @@ class TestMarkdownFormatter:
                 "name": "main.py",
                 "extension": ".py",
                 "lines": 50,
-                "size": 1000
+                "size": 1000,
             }
         ]
 
         analysis_results = [
             {
-                "batch_summary": {
-                    "main_purpose": "Simple script"
-                },
+                "batch_summary": {"main_purpose": "Simple script"},
                 "files": [
                     {
                         "filename": "main.py",
                         "language": "Python",
                         "purpose": "Script entry point",
-                        "complexity": "low"
+                        "complexity": "low",
                     }
-                ]
+                ],
             }
         ]
 
-        with patch('app.utils.markdown_formatter.datetime') as mock_datetime:
-            mock_datetime.now.return_value.strftime.side_effect = ["2023-12-01 10:30:00", "2023-12-01"]
+        with patch("app.utils.markdown_formatter.datetime") as mock_datetime:
+            mock_datetime.now.return_value.strftime.side_effect = [
+                "2023-12-01 10:30:00",
+                "2023-12-01",
+            ]
             md = formatter.format_results(files_data, analysis_results)
 
         assert "# Code Analysis: main" in md
         assert "## 📊 Overview" in md
-        assert "## 🎯 Project Summary" not in md  # Single file doesn't get project summary
+        assert (
+            "## 🎯 Project Summary" not in md
+        )  # Single file doesn't get project summary
         assert "## 📁 File Analysis" in md
         assert "### `main.py`" in md
 
